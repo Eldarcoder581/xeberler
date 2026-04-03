@@ -7,7 +7,10 @@ from bs4 import BeautifulSoup
 from flask import Flask, render_template_string
 
 app = Flask(__name__)
-DB_PATH = 'baku_v10.db' # Bazanı yeniləyirik ki, təmiz başlasın
+
+# BAZA YOLUNU DƏQİQLƏŞDİRİRİK (Bu mütləqdir!)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'baku_v12.db')
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -30,7 +33,8 @@ HTML_TEMPLATE = """
         .news-content { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
         .news-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; height: 42px; overflow: hidden; }
         .btn { display: block; text-align: center; background: #238636; color: white; padding: 10px; text-decoration: none; border-radius: 6px; font-weight: bold; }
-        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -38,8 +42,8 @@ HTML_TEMPLATE = """
     <div class="container">
         {% if not data %}
             <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
-                <h3>Xəbərlər gətirilir...</h3>
-                <p>Milli.az-la əlaqə qurulur. 30 saniyə sonra səhifəni yeniləyin.</p>
+                <h3>Xəbər tapılmadı...</h3>
+                <p>Zəhmət olmasa 10 saniyə sonra səhifəni yeniləyin (F5).</p>
             </div>
         {% else %}
             {% for x in data %}
@@ -67,15 +71,10 @@ def fetch_milli():
     while True:
         try:
             url = "https://news.milli.az/society/"
-            # BLOKU KEÇMƏK ÜÇÜN DAHA GÜCLÜ HEADERS
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-            }
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                # Milli.az-ın daxili strukturuna dəqiq baxırıq
                 items = soup.select(".news-item, .p-news-item, .category-news-item")
                 
                 conn = sqlite3.connect(DB_PATH)
@@ -90,17 +89,15 @@ def fetch_milli():
                                 link = "https://news.milli.az" + link
                             title = a_tag.get("title") or a_tag.text.strip()
                             img_url = img_tag.get("data-src") or img_tag.get("src") or ""
-                            
                             if title and len(title) > 5:
                                 cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, sekil) VALUES (?, ?, ?)", (title, link, img_url))
                     except: continue
                 conn.commit()
                 conn.close()
-                print("Bot: Xəbərlər yeniləndi.")
+                print("Bot: Xəbərlər bazaya uğurla yazıldı.")
         except Exception as e:
             print(f"Bot xetasi: {e}")
-        
-        time.sleep(1800) # 30 dəqiqədən bir yenilə
+        time.sleep(1800)
 
 @app.route('/')
 def home():
@@ -110,13 +107,17 @@ def home():
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 21")
         data = cursor.fetchall()
         conn.close()
+        # Əgər data varsa, ekrana çıxaracaq
         return render_template_string(HTML_TEMPLATE, data=data)
-    except:
-        return "Gözləyin..."
-
-init_db()
-threading.Thread(target=fetch_milli, daemon=True).start()
+    except Exception as e:
+        return f"Xəta baş verdi: {e}"
 
 if __name__ == '__main__':
+    init_db()
+    # Botu threading ilə başladırıq
+    t = threading.Thread(target=fetch_milli)
+    t.daemon = True
+    t.start()
+    
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
