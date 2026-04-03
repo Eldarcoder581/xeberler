@@ -18,6 +18,41 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BAKU NEWS</title>
     <style>
+    /* Ana konteyner: xəbərləri yan-yana düzən hissə */
+.container { 
+    display: grid; 
+    /* repeat(3, 1fr) - yan-yana 3 bərabər sütun yaradır */
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 20px; /* Qutular arasındakı məsafə */
+    padding: 20px; 
+    max-width: 1200px; 
+    margin: 0 auto; 
+}
+
+/* Xəbər qutusu */
+.news-card { 
+    background: #1c2128; 
+    border-radius: 12px; 
+    border: 1px solid #30363d; 
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+}
+
+/* Şəkil hissəsi */
+.news-img { 
+    width: 100%; 
+    height: 200px; 
+    object-fit: cover; /* Şəkli deformasiya etmədən qutuya sığdırır */
+}
+
+/* Telefonlar üçün (Ekran 900px-dən kiçik olsa 2-li, 600px-dən kiçik olsa 1-li sıra) */
+@media (max-width: 900px) {
+    .container { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .container { grid-template-columns: 1fr; }
+}
         body { font-family: Arial, sans-serif; background: #0b0e14; color: #e1e1e1; text-align: center; margin: 0; padding: 0; }
         .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; }
         .container { padding: 10px; max-width: 600px; margin: auto; }
@@ -28,6 +63,21 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
+<div class="container">
+    {% for x in data %}
+    <div class="news-card">
+        <img class="news-img" src="{{ x[3] if x[3] else 'https://via.placeholder.com/300x200' }}">
+        
+        <div style="padding: 15px;">
+            <h3 style="font-size: 16px; height: 45px; overflow: hidden;">{{ x[1] }}</h3>
+            <a href="{{ x[2] }}" target="_blank" 
+               style="display: block; text-align: center; background: #238636; color: white; padding: 10px; border-radius: 6px; text-decoration: none;">
+               Oxu →
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
     <div class="header"><h1>BAKU NEWS 📰</h1></div>
     <div class="container">
         {% if not data %}
