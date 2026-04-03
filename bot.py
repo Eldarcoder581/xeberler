@@ -15,41 +15,39 @@ HTML_TEMPLATE = """
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>BAKU NEWS - Railway Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAKU NEWS</title>
     <style>
-        body { font-family: 'Segoe UI', Arial; background: #0b0e14; color: #e1e1e1; margin: 0; text-align: center; }
-        .header { background: #161b22; padding: 30px; border-bottom: 2px solid #58a6ff; }
-        .news-container { max-width: 800px; margin: 20px auto; padding: 10px; }
-        .news-card { background: #1c2128; margin-bottom: 15px; padding: 20px; border-radius: 10px; border: 1px solid #30363d; transition: 0.2s; }
-        .news-card:hover { border-color: #58a6ff; transform: scale(1.02); }
-        h3 { margin: 0 0 10px 0; color: #adbac7; }
+        body { font-family: Arial; background: #0b0e14; color: #e1e1e1; text-align: center; margin: 0; }
+        .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; position: sticky; top: 0; }
+        .news-card { background: #1c2128; margin: 15px auto; padding: 15px; border-radius: 8px; border: 1px solid #30363d; max-width: 500px; }
+        h3 { font-size: 18px; color: #adbac7; }
         a { color: #58a6ff; text-decoration: none; font-weight: bold; }
-        .loading { font-size: 18px; color: #8b949e; margin-top: 50px; }
     </style>
 </head>
 <body>
     <div class="header"><h1>BAKU NEWS 📰</h1></div>
-    <div class="news-container">
-        {% if not data %}
-            <div class="loading">Xəbərlər Milli.az-dan gətirilir... <br> 10 saniyə sonra səhifəni yeniləyin (F5).</div>
-        {% else %}
-            {% for x in data %}
-            <div class="news-card">
-                <h3>{{ x[1] }}</h3>
-                <a href="{{ x[2] }}" target="_blank">TAM OXU →</a>
-            </div>
-            {% endfor %}
-        {% endif %}
-    </div>
+    {% if not data %}
+        <p style="margin-top:50px;">Xəbərlər yüklənir... <br> 10 saniyə sonra səhifəni yeniləyin.</p>
+    {% else %}
+        {% for x in data %}
+        <div class="news-card">
+            <h3>{{ x[1] }}</h3>
+            <a href="{{ x[2] }}" target="_blank">OXU →</a>
+        </div>
+        {% endfor %}
+    {% endif %}
 </body>
 </html>
 """
 
 def init_db():
+    # Bu funksiya mütləq cədvəli yaratmalıdır
     conn = sqlite3.connect(DB_PATH)
     conn.execute('CREATE TABLE IF NOT EXISTS xeberler (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE)')
     conn.commit()
     conn.close()
+    print("Baza sistemi hazırlandı.")
 
 def fetch_milli():
     while True:
@@ -69,7 +67,8 @@ def fetch_milli():
                     cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
                 conn.commit()
                 conn.close()
-        except: pass
+        except Exception as e:
+            print(f"Bot xetasi: {e}")
         time.sleep(300)
 
 @app.route('/')
@@ -77,17 +76,18 @@ def home():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        # "SIFARIŞ BY" yox, "ORDER BY" olmalıdır!
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 30")
         data = cursor.fetchall()
         conn.close()
         return render_template_string(HTML_TEMPLATE, data=data)
-    except:
-        return "Sistem işə düşür..."
+    except Exception as e:
+        return f"Xəta baş verdi: {e}"
 
+# İŞƏ SALMA SIRALAMASI
 init_db()
 threading.Thread(target=fetch_milli, daemon=True).start()
 
 if __name__ == '__main__':
-    # Railway-in verdiyi portu tutmaq üçün:
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
