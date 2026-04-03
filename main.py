@@ -63,18 +63,19 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-<div class="container">
-    {% for x in data %}
-    <div class="news-card">
-        <img class="news-img" src="{{ x[3] if x[3] else 'https://via.placeholder.com/300x200' }}">
-        
-        <div style="padding: 15px;">
-            <h3 style="font-size: 16px; height: 45px; overflow: hidden;">{{ x[1] }}</h3>
-            <a href="{{ x[2] }}" target="_blank" 
-               style="display: block; text-align: center; background: #238636; color: white; padding: 10px; border-radius: 6px; text-decoration: none;">
-               Oxu →
-            </a>
-        </div>
+<div class="header"><h1>BAKU NEWS 📰</h1></div>
+    <div class="container">
+        {% if not data %}
+            <p style="margin-top:50px;">Xəbərlər gətirilir... <br> 15 saniyə sonra səhifəni yeniləyin (F5).</p>
+            <script>setTimeout(function(){ location.reload(); }, 10000);</script>
+        {% else %}
+            {% for x in data %}
+            <div class="news-card">
+                <h3>{{ x[1] }}</h3>
+                <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
+            </div>
+            {% endfor %}
+        {% endif %}
     </div>
     {% endfor %}
 </div>
