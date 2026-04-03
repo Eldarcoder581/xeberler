@@ -55,23 +55,38 @@ def init_db():
 def fetch_milli():
     while True:
         try:
-            url = "http://news.milli.az/society/"
-            headers = {'User-Agent': 'Mozilla/5.0'}
+            url = "https://news.milli.az/society/"
+            # Daha güclü "User-Agent" əlavə edirik (Real brauzer kimi görünmək üçün)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+            }
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                items = soup.find_all("div", class_="news-item-title", limit=15)
+                # Milli.az-ın yeni strukturu üçün xəbər başlıqlarını tapırıq
+                items = soup.find_all("div", class_="news-item-title", limit=20)
+                
+                if not items:
+                    print("Bot: Xəbər tapılmadı, klass adlarını yoxlayıram...")
+                    items = soup.find_all("a", href=True) # Ehtiyat variant
                 
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 for item in items:
                     try:
-                        title = item.find("a").text.strip()
-                        link = "https://news.milli.az" + item.find("a")["href"]
-                        cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
+                        a_tag = item.find("a") if item.name == "div" else item
+                        title = a_tag.text.strip()
+                        link = a_tag["href"]
+                        if not link.startswith("http"):
+                            link = "https://news.milli.az" + link
+                        
+                        if title and len(title) > 10: # Boş başlıqları keçirik
+                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
                     except: continue
                 conn.commit()
                 conn.close()
+                print("Bot: Xəbərlər uğurla yeniləndi!")
         except Exception as e:
             print(f"Bot xetasi: {e}")
         time.sleep(300)
