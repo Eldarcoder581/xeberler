@@ -8,11 +8,11 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# Baza yolu (v100 edirik ki, təmiz başlasın)
+# Baza yolu
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'baku_v100.db')
+DB_PATH = os.path.join(BASE_DIR, 'baku_v18_final.db')
 
-# --- MODERN 3-LÜ GRID DIZAYN ---
+# --- 3-LÜ YAN-YANA DÜZÜLÜŞ ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="az">
@@ -35,7 +35,8 @@ HTML_TEMPLATE = """
         .news-card:hover { border-color: #238636; transform: translateY(-5px); }
         .news-title { font-size: 15px; font-weight: bold; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
         .btn { display: block; text-align: center; background: #238636; color: white; padding: 10px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
-        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+        @media (max-width: 850px) { .container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -58,35 +59,29 @@ def get_db():
     conn.commit()
     return conn
 
-def seed_data():
-    """Baza boşdursa, 9 dənə müvəqqəti xəbər əlavə edir."""
+def seed_18_news():
+    """Baza tam boşdursa, 18 dənə müvəqqəti xəbər qoyur."""
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT count(*) FROM xeberler")
     if cursor.fetchone()[0] == 0:
-        placeholder_news = [
-            ("Milli.az-dan xəbərlər gətirilir...", "https://news.milli.az/society/"),
-            ("Zəhmət olmasa 30 saniyə sonra yeniləyin...", "https://news.milli.az/society/"),
-            ("Baku News xidmətinizdədir", "https://news.milli.az/society/"),
-            ("Gündəlik xəbər yenilənməsi", "https://news.milli.az/society/"),
-            ("Sistem işə düşür...", "https://news.milli.az/society/"),
-            ("Xəbər portalı aktivləşdirilir", "https://news.milli.az/society/"),
-            ("Cəmiyyət xəbərləri hazırlanır", "https://news.milli.az/society/"),
-            ("Məlumat bazası doldurulur", "https://news.milli.az/society/"),
-            ("Yeni xəbərlər yoldadır...", "https://news.milli.az/society/")
-        ]
-        cursor.executemany("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", placeholder_news)
+        # 18 dənə müxtəlif başlıqla xəbər yeri yaradırıq
+        placeholder_list = []
+        for i in range(1, 19):
+            placeholder_list.append((f"Köhnə Xəbər #{i}: Yenilənmə gözlənilir...", "https://news.milli.az/society/"))
+        
+        cursor.executemany("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", placeholder_list)
         conn.commit()
     conn.close()
 
 def fetch_milli():
-    """Hər 30 dəqiqədən bir xəbərləri yeniləyir."""
+    """Hər 30 dəqiqədən bir yeni xəbərləri çəkir və ən yuxarıya qoyur."""
     while True:
         try:
             url = "https://news.milli.az/society/"
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0'}
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=15) as response:
+            with urllib.request.urlopen(req, timeout=20) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
                 items = soup.select(".news-item, .p-news-item, .category-news-item")
                 conn = get_db()
@@ -98,27 +93,27 @@ def fetch_milli():
                         if not link.startswith("http"): link = "https://news.milli.az" + link
                         title = a_tag.get("title") or a_tag.text.strip()
                         if title:
-                            # Həqiqi xəbər gələndə müvəqqəti xəbərləri silə bilərsən və ya saxlaya bilərsən
+                            # INSERT OR IGNORE sayəsində eyni xəbər iki dəfə düşməyəcək
                             cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
                 conn.commit()
                 conn.close()
         except: pass
-        time.sleep(1800)
+        time.sleep(1800) # 30 dəqiqə
 
 @app.route('/')
 def home():
     conn = get_db()
     cursor = conn.cursor()
-    # Ən son əlavə olunan 21 xəbəri göstər
-    cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 21")
+    # ORDER BY id DESC yeni xəbərlərin həmişə yuxarıda olmasını təmin edir
+    cursor.execute("SELECT * FROM xeberler ORDER BY id DESC")
     data = cursor.fetchall()
     conn.close()
     return render_template_string(HTML_TEMPLATE, data=data)
 
 if __name__ == '__main__':
-    # 1. Müvəqqəti xəbərləri doldur
-    seed_data()
-    # 2. Həqiqi botu arxa fonda başlat
+    # 1. İlk olaraq 18 köhnə xəbəri bazaya yerləşdiririk
+    seed_18_news()
+    # 2. Yeni xəbərləri çəkmək üçün botu başladırıq
     threading.Thread(target=fetch_milli, daemon=True).start()
     
     port = int(os.environ.get("PORT", 5000))
