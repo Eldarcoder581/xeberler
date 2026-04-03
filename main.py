@@ -71,32 +71,47 @@ def fetch_milli():
     while True:
         try:
             url = "https://news.milli.az/society/"
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            # Milli.az-ı aldatmaq üçün Chrome brauzer başlıqları
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'az,az-AZ;q=0.9,en-US;q=0.8,en;q=0.7'
+            }
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                items = soup.select(".news-item, .p-news-item, .category-news-item")
+                # Bütün mümkün xəbər bloklarını axtarırıq
+                items = soup.select(".news-item, .p-news-item, .category-news-item, li")
                 
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                for item in items[:21]:
+                count = 0
+                for item in items:
                     try:
                         a_tag = item.find("a", href=True)
                         img_tag = item.find("img")
-                        if a_tag:
+                        
+                        if a_tag and "/society/" in a_tag["href"]:
                             link = a_tag["href"]
                             if not link.startswith("http"):
                                 link = "https://news.milli.az" + link
+                            
                             title = a_tag.get("title") or a_tag.text.strip()
                             img_url = img_tag.get("data-src") or img_tag.get("src") or ""
-                            if title and len(title) > 5:
+                            
+                            if title and len(title) > 10:
                                 cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, sekil) VALUES (?, ?, ?)", (title, link, img_url))
+                                count += 1
+                        if count >= 21: break # Cəmi 21 xəbər bəs edir
                     except: continue
+                
                 conn.commit()
                 conn.close()
-                print("Bot: Yeniləndi.")
+                print(f"Bot: {count} xəbər bazaya yazıldı.")
         except Exception as e:
             print(f"Bot xetasi: {e}")
+        
+        # 30 dəqiqə (1800 saniyə) gözləyir
         time.sleep(1800)
 
 @app.route('/')
