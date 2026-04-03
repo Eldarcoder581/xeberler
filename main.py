@@ -71,49 +71,40 @@ def fetch_milli():
     while True:
         try:
             url = "https://news.milli.az/society/"
-            # Milli.az-ı aldatmaq üçün Chrome brauzer başlıqları
+            # Daha güclü "User-Agent" əlavə edirik (Real brauzer kimi görünmək üçün)
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'az,az-AZ;q=0.9,en-US;q=0.8,en;q=0.7'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
             }
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                # Bütün mümkün xəbər bloklarını axtarırıq
-                items = soup.select(".news-item, .p-news-item, .category-news-item, li")
+                # Milli.az-ın yeni strukturu üçün xəbər başlıqlarını tapırıq
+                items = soup.find_all("div", class_="news-item-title", limit=20)
                 
-                conn = get_db_connection()
+                if not items:
+                    print("Bot: Xəbər tapılmadı, klass adlarını yoxlayıram...")
+                    items = soup.find_all("a", href=True) # Ehtiyat variant
+                
+                conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
-                count = 0
                 for item in items:
                     try:
-                        a_tag = item.find("a", href=True)
-                        img_tag = item.find("img")
+                        a_tag = item.find("a") if item.name == "div" else item
+                        title = a_tag.text.strip()
+                        link = a_tag["href"]
+                        if not link.startswith("http"):
+                            link = "https://news.milli.az" + link
                         
-                        if a_tag and "/society/" in a_tag["href"]:
-                            link = a_tag["href"]
-                            if not link.startswith("http"):
-                                link = "https://news.milli.az" + link
-                            
-                            title = a_tag.get("title") or a_tag.text.strip()
-                            img_url = img_tag.get("data-src") or img_tag.get("src") or ""
-                            
-                            if title and len(title) > 10:
-                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, sekil) VALUES (?, ?, ?)", (title, link, img_url))
-                                count += 1
-                        if count >= 21: break # Cəmi 21 xəbər bəs edir
+                        if title and len(title) > 10: # Boş başlıqları keçirik
+                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
                     except: continue
-                
                 conn.commit()
                 conn.close()
-                print(f"Bot: {count} xəbər bazaya yazıldı.")
+                print("Bot: Xəbərlər uğurla yeniləndi!")
         except Exception as e:
             print(f"Bot xetasi: {e}")
-        
-        # 30 dəqiqə (1800 saniyə) gözləyir
-        time.sleep(1800)
-
+        time.sleep(300)
 @app.route('/')
 def home():
     try:
