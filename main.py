@@ -78,20 +78,7 @@ HTML_TEMPLATE = """
     </div>
     {% endfor %}
 </div>
-    <div class="header"><h1>BAKU NEWS 📰</h1></div>
-    <div class="container">
-        {% if not data %}
-            <p style="margin-top:50px;">Xəbərlər gətirilir... <br> 15 saniyə sonra səhifəni yeniləyin (F5).</p>
-            <script>setTimeout(function(){ location.reload(); }, 10000);</script>
-        {% else %}
-            {% for x in data %}
-            <div class="news-card">
-                <h3>{{ x[1] }}</h3>
-                <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
-            </div>
-            {% endfor %}
-        {% endif %}
-    </div>
+    
 </body>
 </html>
 """
