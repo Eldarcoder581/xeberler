@@ -1,31 +1,55 @@
 import urllib.request
-import urllib.parse
 import sqlite3
 import threading
 import time
+import os
 from bs4 import BeautifulSoup
 from flask import Flask, render_template_string
-
-# --- TELEGRAM AYARLARI ---
-TOKEN = "BURA_BOT_TOKENINI_YAZ" 
-CHAT_ID = "BURA_CHAT_ID_YAZ" 
 
 app = Flask(__name__)
 DB_PATH = 'bakunews.db'
 
-def send_tg(text):
-    try:
-        msg = urllib.parse.quote(text)
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={msg}&parse_mode=HTML"
-        urllib.request.urlopen(url, timeout=10)
-    except: pass
+# --- HTML DİZAYNI ---
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BAKU NEWS - Railway Edition</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial; background: #0b0e14; color: #e1e1e1; margin: 0; text-align: center; }
+        .header { background: #161b22; padding: 30px; border-bottom: 2px solid #58a6ff; }
+        .news-container { max-width: 800px; margin: 20px auto; padding: 10px; }
+        .news-card { background: #1c2128; margin-bottom: 15px; padding: 20px; border-radius: 10px; border: 1px solid #30363d; transition: 0.2s; }
+        .news-card:hover { border-color: #58a6ff; transform: scale(1.02); }
+        h3 { margin: 0 0 10px 0; color: #adbac7; }
+        a { color: #58a6ff; text-decoration: none; font-weight: bold; }
+        .loading { font-size: 18px; color: #8b949e; margin-top: 50px; }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>BAKU NEWS 📰</h1></div>
+    <div class="news-container">
+        {% if not data %}
+            <div class="loading">Xəbərlər Milli.az-dan gətirilir... <br> 10 saniyə sonra səhifəni yeniləyin (F5).</div>
+        {% else %}
+            {% for x in data %}
+            <div class="news-card">
+                <h3>{{ x[1] }}</h3>
+                <a href="{{ x[2] }}" target="_blank">TAM OXU →</a>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</body>
+</html>
+"""
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute('CREATE TABLE IF NOT EXISTS xeberler (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE, shekil TEXT)')
+    conn.execute('CREATE TABLE IF NOT EXISTS xeberler (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE)')
     conn.commit()
     conn.close()
-    send_tg("🚀 <b>Sistem Yenidən Başladı!</b>\nBaza quruldu, xəbərlər axtarılır...")
 
 def fetch_milli():
     while True:
@@ -35,23 +59,17 @@ def fetch_milli():
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                items = soup.find_all("div", class_="news-item-title", limit=10)
+                items = soup.find_all("div", class_="news-item-title", limit=20)
                 
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
-                new_found = False
                 for item in items:
                     title = item.find("a").text.strip()
                     link = "https://news.milli.az" + item.find("a")["href"]
                     cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
-                    if cursor.rowcount > 0:
-                        send_tg(f"🔔 <b>YENİ XƏBƏR:</b>\n\n{title}\n\n<a href='{link}'>Oxu →</a>")
-                        new_found = True
                 conn.commit()
                 conn.close()
-                if new_found: print("Bot: Yeni xəbərlər göndərildi.")
-        except Exception as e:
-            print(f"Bot xetasi: {e}")
+        except: pass
         time.sleep(300)
 
 @app.route('/')
@@ -62,22 +80,14 @@ def home():
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 30")
         data = cursor.fetchall()
         conn.close()
-        
-        if not data:
-            return "<h1>Xəbərlər yüklənir... Zəhmət olmasa 1 dəqiqə gözləyib səhifəni yeniləyin (F5).</h1>"
-            
-        html = "<html><body style='background:#121212;color:white;font-family:Arial;text-align:center;'>"
-        html += "<h1 style='color:gold;'>BAKU NEWS</h1><hr>"
-        for x in data:
-            html += f"<div style='border:1px solid #333;margin:10px;padding:10px;border-radius:10px;'>"
-            html += f"<h3>{x[1]}</h3><a style='color:gold;' href='{x[2]}' target='_blank'>OXU</a></div>"
-        html += "</body></html>"
-        return html
+        return render_template_string(HTML_TEMPLATE, data=data)
     except:
-        return "Sistem hələ tam hazır deyil..."
+        return "Sistem işə düşür..."
 
 init_db()
 threading.Thread(target=fetch_milli, daemon=True).start()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    # Railway-in verdiyi portu tutmaq üçün:
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
