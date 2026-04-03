@@ -8,9 +8,9 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# BAZA YOLUNU DƏQİQLƏŞDİRİRİK (Bu mütləqdir!)
+# BAZA YOLU
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'baku_v12.db')
+DB_PATH = os.path.join(BASE_DIR, 'baku_fixed.db')
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -42,8 +42,8 @@ HTML_TEMPLATE = """
     <div class="container">
         {% if not data %}
             <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
-                <h3>Xəbər tapılmadı...</h3>
-                <p>Zəhmət olmasa 10 saniyə sonra səhifəni yeniləyin (F5).</p>
+                <h3>Xəbərlər gətirilir...</h3>
+                <p>Bot işə düşür. 15 saniyə gözləyib səhifəni yeniləyin.</p>
             </div>
         {% else %}
             {% for x in data %}
@@ -61,11 +61,11 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def init_db():
+def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.execute('CREATE TABLE IF NOT EXISTS xeberler (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE, sekil TEXT)')
     conn.commit()
-    conn.close()
+    return conn
 
 def fetch_milli():
     while True:
@@ -77,7 +77,7 @@ def fetch_milli():
                 soup = BeautifulSoup(response.read(), "html.parser")
                 items = soup.select(".news-item, .p-news-item, .category-news-item")
                 
-                conn = sqlite3.connect(DB_PATH)
+                conn = get_db_connection()
                 cursor = conn.cursor()
                 for item in items[:21]:
                     try:
@@ -94,7 +94,7 @@ def fetch_milli():
                     except: continue
                 conn.commit()
                 conn.close()
-                print("Bot: Xəbərlər bazaya uğurla yazıldı.")
+                print("Bot: Yeniləndi.")
         except Exception as e:
             print(f"Bot xetasi: {e}")
         time.sleep(1800)
@@ -102,22 +102,18 @@ def fetch_milli():
 @app.route('/')
 def home():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection() # Hər dəfə yoxlayır ki cədvəl varmı
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 21")
         data = cursor.fetchall()
         conn.close()
-        # Əgər data varsa, ekrana çıxaracaq
         return render_template_string(HTML_TEMPLATE, data=data)
     except Exception as e:
-        return f"Xəta baş verdi: {e}"
+        return f"Xəta: {e}"
 
 if __name__ == '__main__':
-    init_db()
-    # Botu threading ilə başladırıq
-    t = threading.Thread(target=fetch_milli)
-    t.daemon = True
-    t.start()
+    # Botu başlat
+    threading.Thread(target=fetch_milli, daemon=True).start()
     
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
