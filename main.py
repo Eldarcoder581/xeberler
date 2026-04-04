@@ -20,9 +20,11 @@ HTML_TEMPLATE = """
     <style>
     /* Container-i grid sisteminə salırıq */
 .container { 
+   .container { 
     display: grid; 
-    grid-template-columns: repeat(3, 1fr); /* Yan-yana 3 dənə */
-    gap: 20px; 
+    grid-template-columns: repeat(4, 1fr); /* 3-ü 4 ilə əvəz et */
+    gap: 15px; 
+}
     padding: 20px; 
     max-width: 1200px; 
     margin: 0 auto; 
@@ -86,41 +88,63 @@ def init_db():
 def fetch_milli():
     while True:
         try:
+            # Society (Cəmiyyət) bölməsindən xəbərləri götürürük
             url = "https://news.milli.az/society/"
-            # Daha güclü "User-Agent" əlavə edirik (Real brauzer kimi görünmək üçün)
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
             req = urllib.request.Request(url, headers=headers)
+            
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                # Milli.az-ın yeni strukturu üçün xəbər başlıqlarını tapırıq
-                items = soup.find_all("div", class_="news-item-title", limit=20)
                 
+                # Maksimum 100 xəbər blokunu tapırıq
+                items = soup.find_all("div", class_="category-news-item", limit=100)
+                
+                # Əgər yuxarıdakı klass tapılmasa, alternativ xəbər başlıqlarını yoxlayırıq
                 if not items:
-                    print("Bot: Xəbər tapılmadı, klass adlarını yoxlayıram...")
-                    items = soup.find_all("a", href=True) # Ehtiyat variant
-                
+                    items = soup.find_all("div", class_="news-item-title", limit=100)
+
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
+                
+                new_count = 0
                 for item in items:
                     try:
-                        a_tag = item.find("a") if item.name == "div" else item
-                        title = a_tag.text.strip()
-                        link = a_tag["href"]
-                        if not link.startswith("http"):
-                            link = "https://news.milli.az" + link
+                        # Link və başlığı tapırıq
+                        a_tag = item.find("a", href=True)
+                        # Şəkli tapırıq
+                        img_tag = item.find("img")
                         
-                        if title and len(title) > 10: # Boş başlıqları keçirik
-                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
-                    except: continue
+                        if a_tag:
+                            title = a_tag.get("title") or a_tag.text.strip()
+                            link = a_tag["href"]
+                            if not link.startswith("http"):
+                                link = "https://news.milli.az" + link
+                            
+                            # Şəkil linkini götürürük (src və ya data-src)
+                            img_url = ""
+                            if img_tag:
+                                img_url = img_tag.get("src") or img_tag.get("data-src") or ""
+                            
+                            if title and len(title) > 10:
+                                # INSERT OR IGNORE sayəsində ancaq yeni xəbərlər bazaya girir
+                                # ID avtomatik artdığı üçün yeni xəbərlər böyük ID ilə yuxarıda qalacaq
+                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, img_url) VALUES (?, ?, ?)", (title, link, img_url))
+                                if cursor.rowcount > 0:
+                                    new_count += 1
+                    except:
+                        continue
+                
                 conn.commit()
                 conn.close()
-                print("Bot: Xəbərlər uğurla yeniləndi!")
+                print(f"Bot: Yenilənmə tamamlandı. {new_count} yeni xəbər əlavə edildi.")
+
         except Exception as e:
-            print(f"Bot xetasi: {e}")
-        time.sleep(300)
+            print(f"Bot xətası: {e}")
+        
+        # 15 dəqiqə (900 saniyə) gözləmə müddəti
+        time.sleep(900)
 
 @app.route('/')
 def home():
@@ -128,7 +152,8 @@ def home():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         # MÜTLƏQ "ORDER BY" OLMALIDIR
-        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 20")
+      # DESC yazmasan, yeni xəbərlər ən aşağıda qalar, görünməz.
+cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
         data = cursor.fetchall()
         conn.close()
         return render_template_string(HTML_TEMPLATE, data=data)
