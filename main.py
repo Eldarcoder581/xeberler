@@ -18,6 +18,37 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BAKU NEWS</title>
     <style>
+    /* Container-i grid sisteminə salırıq */
+.container { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); /* Yan-yana 3 dənə */
+    gap: 20px; 
+    padding: 20px; 
+    max-width: 1200px; 
+    margin: 0 auto; 
+}
+
+/* Xəbər qutusunun ölçülərini sabitləyirik */
+.news-item { 
+    background: white; 
+    border-radius: 8px; 
+    padding: 20px; 
+    border-left: 6px solid #002347; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 150px; /* Qutuların boyu eyni olsun */
+}
+
+/* Telefonlar üçün (ekran kiçiləndə alt-alta düşsün) */
+@media (max-width: 900px) {
+    .container { grid-template-columns: repeat(2, 1fr); } /* Planşetdə 2-li */
+}
+
+@media (max-width: 600px) {
+    .container { grid-template-columns: 1fr; } /* Telefonda 1-li */
+}
         body { font-family: Arial, sans-serif; background: #0b0e14; color: #e1e1e1; text-align: center; margin: 0; padding: 0; }
         .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; }
         .container { padding: 10px; max-width: 600px; margin: auto; }
