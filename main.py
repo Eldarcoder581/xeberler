@@ -11,6 +11,7 @@ DB_PATH = 'bakunews.db'
 
 # --- HTML DİZAYNI (Telefonda da gözəl görsənir) ---
 HTML_TEMPLATE = """
+html_template = """
 <!DOCTYPE html>
 <html>
 <head>
