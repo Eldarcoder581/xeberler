@@ -56,6 +56,7 @@ HTML_TEMPLATE = """
         h3 { font-size: 18px; line-height: 1.4; color: #adbac7; margin-bottom: 15px; }
         .btn { display: inline-block; background: #238636; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; }
         .btn:hover { background: #2ea043; }
+   <img src="{{ x[3] }}" style="width:100%; height:180px; object-fit:cover;">
     </style>
 </head>
 <body>
