@@ -88,26 +88,25 @@ def init_db():
 def fetch_milli():
     while True:
         try:
+            # 1. Milli.az-a daxil oluruq
             url = "https://news.milli.az/society/"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             req = urllib.request.Request(url, headers=headers)
             
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
                 
-                # 1. Milli.az-dan ən son 100 xəbər blokunu axtarırıq
+                # 2. Saytdakı xəbər bloklarını tapırıq (limit yoxdur, hamısını götürürük)
                 items = soup.select(".category-news-item, .news-item, .p-news-item, .news-item-title")
                 
                 if not items:
-                    items = soup.find_all("a", href=True, limit=100)
+                    items = soup.find_all("a", href=True)
 
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 
                 new_count = 0
-                # 2. Tapılan 100 xəbəri bir-bir yoxlayırıq
+                # 3. İLK 100 XƏBƏRİ BAZAYA VURURUQ (Sayt dərhal dolsun deyə)
                 for item in items[:100]:
                     try:
                         a_tag = item if item.name == "a" else item.find("a", href=True)
@@ -118,15 +117,15 @@ def fetch_milli():
                             
                             title = a_tag.get("title") or a_tag.text.strip()
                             
-                            img_tag = item.find("img") if item.name != "a" else None
+                            img_tag = item.find("img")
                             img_url = ""
                             if img_tag:
                                 img_url = img_tag.get("src") or img_tag.get("data-src") or ""
 
                             if title and len(title) > 10:
-                                # 3. INSERT OR IGNORE sayəsində:
-                                # Əgər baza boşdursa, 100-nü də bura yazacaq (Sayt dolacaq).
-                                # Əgər baza doludursa, ancaq yeni gələnləri əlavə edəcək.
+                                # INSERT OR IGNORE sayəsində:
+                                # Əgər baza boşdursa, 100-nü də bura yazacaq.
+                                # Əgər baza doludursa, köhnələri keçib ancaq yeniləri əlavə edəcək.
                                 cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, img_url) VALUES (?, ?, ?)", (title, link, img_url))
                                 if cursor.rowcount > 0:
                                     new_count += 1
@@ -135,13 +134,18 @@ def fetch_milli():
                 
                 conn.commit()
                 conn.close()
-                print(f"Bot: İşləm tamamlandı. {new_count} xəbər işlənildi.")
+                
+                if new_count > 0:
+                    print(f"Bot: {new_count} xəbər uğurla işlənildi. Sayt yeniləndi.")
+                else:
+                    print("Bot: Yeni xəbər tapılmadı (Baza artıq doludur).")
 
         except Exception as e:
-            print(f"Bot xetasi: {e}")
+            print(f"Bot xətası: {e}")
         
-        # 4. 15 dəqiqə gözləyirik və yenidən yuxarıdakı prosesi təkrar edirik
+        # 4. 15 dəqiqə (900 saniyə) gözləyirik və dövrə başa çatır
         time.sleep(900)
+
 @app.route('/')
 def home():
     try:  # BAX BU SƏTİRİ ƏLAVƏ ETDİK (Səndə yox idi)
