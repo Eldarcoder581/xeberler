@@ -7,101 +7,108 @@ from bs4 import BeautifulSoup
 from flask import Flask, render_template_string
 
 app = Flask(__name__)
+DB_PATH = 'bakunews.db'
 
-# Baza yolu
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'baku_siyaset_final.db')
-
-# --- DİPLOMATİK VƏ DOLU DİZAYN ---
+# --- HTML DİZAYNI (Telefonda da gözəl görsənir) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="az">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BAKU NEWS - Siyasət</title>
+    <title>BAKU NEWS</title>
     <style>
-        body { font-family: 'Times New Roman', serif; background: #fdfdfd; color: #1a1a1a; margin: 0; padding: 0; }
-        .header { background: #002347; color: white; padding: 25px; text-align: center; border-bottom: 5px solid #b22222; }
-        .header h1 { margin: 0; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; }
-        .container { max-width: 800px; margin: 20px auto; padding: 15px; }
-        .news-item { 
-            background: white; border: 1px solid #ddd; padding: 20px; 
-            margin-bottom: 15px; border-left: 8px solid #002347; transition: 0.2s;
-        }
-        .news-item:hover { border-left-color: #b22222; background: #f9f9f9; }
-        .news-title { font-size: 20px; font-weight: bold; color: #002347; text-decoration: none; }
-        .news-meta { font-size: 12px; color: #777; margin-top: 10px; }
-        .footer { text-align: center; padding: 30px; color: #999; font-size: 13px; }
+        body { font-family: Arial, sans-serif; background: #0b0e14; color: #e1e1e1; text-align: center; margin: 0; padding: 0; }
+        .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; }
+        .container { padding: 10px; max-width: 600px; margin: auto; }
+        .news-card { background: #1c2128; margin: 15px 0; padding: 20px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h3 { font-size: 18px; line-height: 1.4; color: #adbac7; margin-bottom: 15px; }
+        .btn { display: inline-block; background: #238636; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; }
+        .btn:hover { background: #2ea043; }
     </style>
 </head>
 <body>
-    <div class="header"><h1>BAKU NEWS • SİYASƏT 🇦🇿</h1></div>
+    <div class="header"><h1>BAKU NEWS 📰</h1></div>
     <div class="container">
-        {% for x in data %}
-        <div class="news-item">
-            <a href="{{ x[2] }}" target="_blank" class="news-title">{{ x[1] }}</a>
-            <div class="news-meta">MƏNBƏ: MİLLİ.AZ | SİYASƏT VƏ DİPLOMATİYA</div>
-        </div>
-        {% endfor %}
+        {% if not data %}
+            <p style="margin-top:50px;">Xəbərlər gətirilir... <br> 15 saniyə sonra səhifəni yeniləyin (F5).</p>
+            <script>setTimeout(function(){ location.reload(); }, 10000);</script>
+        {% else %}
+            {% for x in data %}
+            <div class="news-card">
+                <h3>{{ x[1] }}</h3>
+                <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
+            </div>
+            {% endfor %}
+        {% endif %}
     </div>
-    <div class="footer">© 2026 Əhmədzadə Diplomatik Xidmət</div>
 </body>
 </html>
 """
 
-def get_db():
+def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute('CREATE TABLE IF NOT EXISTS siyaset (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE)')
+    conn.execute('CREATE TABLE IF NOT EXISTS xeberler (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE)')
     conn.commit()
-    return conn
+    conn.close()
 
 def fetch_milli():
-    """Xəbərləri dərhal və hər 30 dəqiqədən bir çəkir."""
     while True:
         try:
-            url = "https://news.milli.az/politics/"
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            url = "https://news.milli.az/society/"
+            # Daha güclü "User-Agent" əlavə edirik (Real brauzer kimi görünmək üçün)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+            }
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=15) as response:
+            with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                items = soup.select(".news-item, .p-news-item, .category-news-item")
+                # Milli.az-ın yeni strukturu üçün xəbər başlıqlarını tapırıq
+                items = soup.find_all("div", class_="news-item-title", limit=20)
                 
-                conn = get_db()
+                if not items:
+                    print("Bot: Xəbər tapılmadı, klass adlarını yoxlayıram...")
+                    items = soup.find_all("a", href=True) # Ehtiyat variant
+                
+                conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
-                for item in items[:30]:
-                    a_tag = item.find("a", href=True)
-                    if a_tag:
+                for item in items:
+                    try:
+                        a_tag = item.find("a") if item.name == "div" else item
+                        title = a_tag.text.strip()
                         link = a_tag["href"]
-                        if not link.startswith("http"): link = "https://news.milli.az" + link
-                        title = a_tag.get("title") or a_tag.text.strip()
-                        if title:
-                            cursor.execute("INSERT OR IGNORE INTO siyaset (bashliq, link) VALUES (?, ?)", (title, link))
+                        if not link.startswith("http"):
+                            link = "https://news.milli.az" + link
+                        
+                        if title and len(title) > 10: # Boş başlıqları keçirik
+                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
+                    except: continue
                 conn.commit()
                 conn.close()
-        except: pass
-        time.sleep(1800)
+                print("Bot: Xəbərlər uğurla yeniləndi!")
+        except Exception as e:
+            print(f"Bot xetasi: {e}")
+        time.sleep(300)
 
 @app.route('/')
 def home():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM siyaset ORDER BY id DESC LIMIT 35")
-    data = cursor.fetchall()
-    
-    # Əgər hələ bazada xəbər yoxdursa, boş görünməməsi üçün müvəqqəti məlumat göstər
-    if not data:
-        data = [
-            (0, "Xəbərlər hazırlanır, zəhmət olmasa 10 saniyə sonra yeniləyin...", "#"),
-            (0, "Diplomatik arxiv yüklənir...", "#"),
-            (0, "Siyasət bölməsinə qoşulur...", "#")
-        ]
-    conn.close()
-    return render_template_string(HTML_TEMPLATE, data=data)
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # MÜTLƏQ "ORDER BY" OLMALIDIR
+        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 20")
+        data = cursor.fetchall()
+        conn.close()
+        return render_template_string(HTML_TEMPLATE, data=data)
+    except:
+        return "Sistem hazırlanır..."
+
+# Başlatma
+init_db()
+threading.Thread(target=fetch_milli, daemon=True).start()
 
 if __name__ == '__main__':
-    # Botu dərhal başlat
-    threading.Thread(target=fetch_milli, daemon=True).start()
-    
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    # Railway üçün port ayarı
+    p = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=p)
