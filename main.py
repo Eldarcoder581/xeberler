@@ -115,26 +115,35 @@ def fetch_milli():
                 cursor = conn.cursor()
                 for item in items:
                     try:
-                        # Hər xəbər elementinin içində şəkli axtarırıq
-img_tag = item.find("img")
+                       url = "https://news.milli.az/politics/"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=15) as response:
+                # 1. Screenshot_4-dəki mötərizə xətasını burada bağladıq:
+                soup = BeautifulSoup(response.read(), "html.parser") 
+                
+                items = soup.select(".news-item, .p-news-item, .category-news-item")
+                
+                conn = get_db()
+                cursor = conn.cursor()
+                for item in items[:30]:
+                    a_tag = item.find("a", href=True)
+                    
+                    # 2. Screenshot_7-dəki boşluq xətasını burada düzəltdik:
+                    img_tag = item.find("img")
+                    img_url = ""
+                    if img_tag:
+                        img_url = img_tag.get("src") or img_tag.get("data-src") or ""
 
-# Şəkil linkini götürürük
-img_url = ""
-if img_tag:
-    # Milli.az bəzən 'src', bəzən də 'data-src' istifadə edir
-    img_url = img_tag.get("src") or img_tag.get("data-src") or ""
-                        a_tag = item.find("a") if item.name == "div" else item
-                        title = a_tag.text.strip()
+                    if a_tag:
                         link = a_tag["href"]
-                        if not link.startswith("http"):
-                            link = "https://news.milli.az" + link
-                        
-                        if title and len(title) > 10: # Boş başlıqları keçirik
-                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
-                    except: continue
+                        if not link.startswith("http"): link = "https://news.milli.az" + link
+                        title = a_tag.get("title") or a_tag.text.strip()
+                        cursor.execute("INSERT OR IGNORE INTO siyaset (bashliq, link, img_url) VALUES (?, ?, ?)", (title, link, img_url))
                 conn.commit()
                 conn.close()
-                print("Bot: Xəbərlər uğurla yeniləndi!")
+        except Exception as e:
+            print(f"Xeta bas verdi: {e}")
         except Exception as e:
             print(f"Bot xetasi: {e}")
         time.sleep(300)
