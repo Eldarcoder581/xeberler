@@ -54,15 +54,8 @@ HTML_TEMPLATE = """
         .container { padding: 10px; max-width: 600px; margin: auto; }
         .news-card { background: #1c2128; margin: 15px 0; padding: 20px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         h3 { font-size: 18px; line-height: 1.4; color: #adbac7; margin-bottom: 15px; }
-      .news-img { 
-    width: 100%; 
-    height: 180px; /* Qutunun içində şəklin hündürlüyü */
-    object-fit: cover; /* Şəkli əzmir, sahəyə tam sığdırır */
-    border-bottom: 1px solid #ddd; /* Şəkillə başlığı ayırmaq üçün nazik xətt */
-}
         .btn { display: inline-block; background: #238636; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; }
         .btn:hover { background: #2ea043; }
-
     </style>
 </head>
 <body>
@@ -72,15 +65,11 @@ HTML_TEMPLATE = """
             <p style="margin-top:50px;">Xəbərlər gətirilir... <br> 15 saniyə sonra səhifəni yeniləyin (F5).</p>
             <script>setTimeout(function(){ location.reload(); }, 10000);</script>
         {% else %}
-           <img src="{{ x[3] if x[3] else 'https://via.placeholder.com/400x200' }}" class="news-img">
             {% for x in data %}
             <div class="news-card">
-    <img src="{{ x[3] if x[3] else 'https://via.placeholder.com/400x200' }}" class="news-img">
-    
-    <div class="news-content">
-        <a href="{{ x[2] }}" target="_blank" class="news-title">{{ x[1] }}</a>
-    </div>
-</div>
+                <h3>{{ x[1] }}</h3>
+                <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
+            </div>
             {% endfor %}
         {% endif %}
     </div>
@@ -117,35 +106,18 @@ def fetch_milli():
                 cursor = conn.cursor()
                 for item in items:
                     try:
-                       url = "https://news.milli.az/politics/"
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=15) as response:
-                # 1. Screenshot_4-dəki mötərizə xətasını burada bağladıq:
-                soup = BeautifulSoup(response.read(), "html.parser") 
-                
-                items = soup.select(".news-item, .p-news-item, .category-news-item")
-                
-                conn = get_db()
-                cursor = conn.cursor()
-                for item in items[:30]:
-                    a_tag = item.find("a", href=True)
-                    
-                    # 2. Screenshot_7-dəki boşluq xətasını burada düzəltdik:
-                    img_tag = item.find("img")
-                    img_url = ""
-                    if img_tag:
-                        img_url = img_tag.get("src") or img_tag.get("data-src") or ""
-
-                    if a_tag:
+                        a_tag = item.find("a") if item.name == "div" else item
+                        title = a_tag.text.strip()
                         link = a_tag["href"]
-                        if not link.startswith("http"): link = "https://news.milli.az" + link
-                        title = a_tag.get("title") or a_tag.text.strip()
-                        cursor.execute("INSERT OR IGNORE INTO siyaset (bashliq, link, img_url) VALUES (?, ?, ?)", (title, link, img_url))
+                        if not link.startswith("http"):
+                            link = "https://news.milli.az" + link
+                        
+                        if title and len(title) > 10: # Boş başlıqları keçirik
+                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
+                    except: continue
                 conn.commit()
                 conn.close()
-        except Exception as e:
-            print(f"Xeta bas verdi: {e}")
+                print("Bot: Xəbərlər uğurla yeniləndi!")
         except Exception as e:
             print(f"Bot xetasi: {e}")
         time.sleep(300)
