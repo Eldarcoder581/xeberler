@@ -105,39 +105,53 @@ def init_db():
 def fetch_milli():
     while True:
         try:
+            # Milli.az-ın Cəmiyyət bölməsinə daxil oluruq (burada xəbər daha çoxdur)
             url = "https://news.milli.az/society/"
-            headers = {'User-Agent': 'Mozilla/5.0'}
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             req = urllib.request.Request(url, headers=headers)
             
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                items = soup.select(".category-news-item, .news-item, .p-news-item")
                 
-                if not items:
-                    items = soup.find_all("a", href=True)
+                # BÜTÜN xəbər linklərini və başlıqlarını tutmaq üçün geniş süzgəc:
+                # Bu həm şəkilli blokları, həm də sadə siyahıları tapır
+                items = soup.find_all("a", href=True)
 
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
                 
                 new_count = 0
-                for item in items[:100]:
-                    try:
-                        a_tag = item if item.name == "a" else item.find("a", href=True)
-                        if a_tag:
-                            link = a_tag["href"]
-                            if not link.startswith("http"): link = "https://news.milli.az" + link
-                            title = a_tag.get("title") or a_tag.text.strip()
-                            if title and len(title) > 10:
-                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
-                                if cursor.rowcount > 0:
-                                    new_count += 1
-                    except: continue
+                for item in items:
+                    link = item["href"]
+                    # Yalnız xəbər linkləri olduğunu yoxlayırıq (rəqəmlə bitən linklər xəbərdir)
+                    if "/society/" in link or link.split('/')[-1].isdigit():
+                        if not link.startswith("http"):
+                            link = "https://news.milli.az" + link
+                        
+                        # Başlığı götürürük
+                        title = item.get("title") or item.text.strip()
+                        
+                        # Əgər başlıq çox qısadırsa və ya boşdursa, keçirik
+                        if len(title) < 15:
+                            continue
+                            
+                        # Bazaya yazırıq
+                        cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
+                        if cursor.rowcount > 0:
+                            new_count += 1
+                            
+                    # 100 xəbərə çatanda dayanırıq
+                    if new_count >= 100:
+                        break
                 
                 conn.commit()
                 conn.close()
-                print(f"Bot: {new_count} yeni xəbər.")
+                print(f"Bot: Yenilənmə bitdi. {new_count} yeni xəbər bazaya əlavə edildi.")
+
         except Exception as e:
-            print(f"Bot xetasi: {e}")
+            print(f"Bot xətası: {e}")
+        
+        # 15 dəqiqə gözləyirik
         time.sleep(900)
 
 @app.route('/')
