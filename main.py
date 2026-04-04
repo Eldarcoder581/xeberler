@@ -81,9 +81,21 @@ HTML_TEMPLATE = """
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute('CREATE TABLE IF NOT EXISTS xeberler (id INTEGER PRIMARY KEY AUTOINCREMENT, bashliq TEXT, link TEXT UNIQUE)')
+    cursor = conn.cursor()
+    
+    # DİQQƏT: Bu sətir köhnə cədvəli tamamilə silir!
+    cursor.execute("DROP TABLE IF EXISTS xeberler")
+    
+    # İndi isə təzə və düzgün sütunlarla yenidən yaradırıq
+    cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+         bashliq TEXT, 
+         link TEXT UNIQUE, 
+         img_url TEXT)''')
+    
     conn.commit()
     conn.close()
+    print("Baza tamamilə sıfırlandı və təzədən yaradıldı!")
 
 def fetch_milli():
     while True:
