@@ -75,10 +75,12 @@ HTML_TEMPLATE = """
            <img src="{{ x[3] if x[3] else 'https://via.placeholder.com/400x200' }}" class="news-img">
             {% for x in data %}
             <div class="news-card">
-               <img src="{{ x[3] }}" style="width:100%; height:180px; object-fit:cover;">
-                <h3>{{ x[1] }}</h3>
-                <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
-            </div>
+    <img src="{{ x[3] if x[3] else 'https://via.placeholder.com/400x200' }}" class="news-img">
+    
+    <div class="news-content">
+        <a href="{{ x[2] }}" target="_blank" class="news-title">{{ x[1] }}</a>
+    </div>
+</div>
             {% endfor %}
         {% endif %}
     </div>
