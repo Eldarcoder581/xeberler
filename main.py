@@ -148,21 +148,28 @@ def fetch_milli():
 
 @app.route('/')
 def home():
-    try:  # BAX BU SƏTİRİ ƏLAVƏ ETDİK (Səndə yox idi)
+    try:
+        # Baza ilə bağlantı qururuq
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Yeni xəbərləri yuxarıda göstərmək üçün DESC istifadə edirik
+        # BAX BU SƏTİRİ DƏQİQ YOXLAYIN:
+        # 'xeberler' cədvəlindən ən son 100 xəbəri çəkirik
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
         
         data = cursor.fetchall()
         conn.close()
         
-        return render_template_string(HTML_TEMPLATE, data=data)
+        # Əgər data boşdursa, ekrana mesaj veririk (yoxlamaq üçün)
+        if not data:
+            return "Baza doludur deyir, amma içində məlumat tapılmadı. Zəhmət olmasa bazanı silib yenidən başladın."
+            
+        # HTML-ə göndəririk
+        return render_template_string(html_template, data=data)
         
-    except Exception as e: # Bura "Exception as e" əlavə etmək daha yaxşıdır
-        print(f"Xəta: {e}")
-        return "Sistem hazırlanır..."
+    except Exception as e:
+        # Hər hansı xəta olsa (məsələn, cədvəl tapılmasa) bura düşəcək
+        return f"Saytda xəta baş verdi: {e}"
 # Başlatma
 init_db()
 threading.Thread(target=fetch_milli, daemon=True).start()
