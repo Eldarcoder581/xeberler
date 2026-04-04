@@ -148,22 +148,21 @@ def fetch_milli():
 
 @app.route('/')
 def home():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # BAX BU SƏTİR ƏN VACİBİDİR: 
-    # "ORDER BY id DESC" əmri yeni xəbərləri yuxarı qoyur, köhnələri aşağı itələyir.
-    # "LIMIT 100" isə saytda cəmi 100 xəbər saxlayır.
-    cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
-    
-    data = cursor.fetchall()
-    conn.close()
-    
-    # HTML-i render edirik
-    return render_template_string(HTML_TEMPLATE, data=data)
-    except:
+    try:  # BAX BU SƏTİRİ ƏLAVƏ ETDİK (Səndə yox idi)
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Yeni xəbərləri yuxarıda göstərmək üçün DESC istifadə edirik
+        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
+        
+        data = cursor.fetchall()
+        conn.close()
+        
+        return render_template_string(HTML_TEMPLATE, data=data)
+        
+    except Exception as e: # Bura "Exception as e" əlavə etmək daha yaxşıdır
+        print(f"Xəta: {e}")
         return "Sistem hazırlanır..."
-
 # Başlatma
 init_db()
 threading.Thread(target=fetch_milli, daemon=True).start()
