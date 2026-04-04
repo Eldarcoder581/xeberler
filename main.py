@@ -54,9 +54,15 @@ HTML_TEMPLATE = """
         .container { padding: 10px; max-width: 600px; margin: auto; }
         .news-card { background: #1c2128; margin: 15px 0; padding: 20px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         h3 { font-size: 18px; line-height: 1.4; color: #adbac7; margin-bottom: 15px; }
+      .news-img { 
+    width: 100%; 
+    height: 180px; /* Qutunun içində şəklin hündürlüyü */
+    object-fit: cover; /* Şəkli əzmir, sahəyə tam sığdırır */
+    border-bottom: 1px solid #ddd; /* Şəkillə başlığı ayırmaq üçün nazik xətt */
+}
         .btn { display: inline-block; background: #238636; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; }
         .btn:hover { background: #2ea043; }
-   <img src="{{ x[3] }}" style="width:100%; height:180px; object-fit:cover;">
+
     </style>
 </head>
 <body>
@@ -66,8 +72,10 @@ HTML_TEMPLATE = """
             <p style="margin-top:50px;">Xəbərlər gətirilir... <br> 15 saniyə sonra səhifəni yeniləyin (F5).</p>
             <script>setTimeout(function(){ location.reload(); }, 10000);</script>
         {% else %}
+           <img src="{{ x[3] if x[3] else 'https://via.placeholder.com/400x200' }}" class="news-img">
             {% for x in data %}
             <div class="news-card">
+               <img src="{{ x[3] }}" style="width:100%; height:180px; object-fit:cover;">
                 <h3>{{ x[1] }}</h3>
                 <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
             </div>
