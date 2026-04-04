@@ -9,64 +9,72 @@ from flask import Flask, render_template_string
 app = Flask(__name__)
 DB_PATH = 'bakunews.db'
 
-# --- HTML DİZAYNI (Telefonda da gözəl görsənir) ---
+# --- HTML DİZAYNI ---
 HTML_TEMPLATE = """
-html_template = """
 <!DOCTYPE html>
-<html>
+<html lang="az">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BAKU NEWS</title>
     <style>
-    /* Container-i grid sisteminə salırıq */
-.container { 
-   .container { 
-    display: grid; 
-    grid-template-columns: repeat(4, 1fr); /* 3-ü 4 ilə əvəz et */
-    gap: 15px; 
-}
-    padding: 20px; 
-    max-width: 1200px; 
-    margin: 0 auto; 
-}
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #0b0e14; color: #e1e1e1; margin: 0; padding: 0; }
+        .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; text-align: center; position: sticky; top: 0; z-index: 100; }
+        
+        /* Grid Sistemi: Yan-yana 4 dənə */
+        .container { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 20px; 
+            padding: 25px; 
+            max-width: 1400px; 
+            margin: auto; 
+        }
 
-/* Xəbər qutusunun ölçülərini sabitləyirik */
-.news-item { 
-    background: white; 
-    border-radius: 8px; 
-    padding: 20px; 
-    border-left: 6px solid #002347; 
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 150px; /* Qutuların boyu eyni olsun */
-}
+        .news-card { 
+            background: #1c2128; 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #30363d; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s;
+        }
 
-/* Telefonlar üçün (ekran kiçiləndə alt-alta düşsün) */
-@media (max-width: 900px) {
-    .container { grid-template-columns: repeat(2, 1fr); } /* Planşetdə 2-li */
-}
+        .news-card:hover { transform: translateY(-5px); border-color: #58a6ff; }
 
-@media (max-width: 600px) {
-    .container { grid-template-columns: 1fr; } /* Telefonda 1-li */
-}
-        body { font-family: Arial, sans-serif; background: #0b0e14; color: #e1e1e1; text-align: center; margin: 0; padding: 0; }
-        .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; }
-        .container { padding: 10px; max-width: 600px; margin: auto; }
-        .news-card { background: #1c2128; margin: 15px 0; padding: 20px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        h3 { font-size: 18px; line-height: 1.4; color: #adbac7; margin-bottom: 15px; }
-        .btn { display: inline-block; background: #238636; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; }
-        .btn:hover { background: #2ea043; }
+        h3 { font-size: 16px; line-height: 1.4; color: #adbac7; margin: 0 0 15px 0; height: 65px; overflow: hidden; }
+        
+        .btn { 
+            display: block; 
+            background: #238636; 
+            color: white; 
+            padding: 10px; 
+            border-radius: 6px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            text-align: center;
+            font-size: 14px;
+        }
+
+        /* Ekran tənzimləmələri */
+        @media (max-width: 1100px) { .container { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 850px) { .container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 550px) { 
+            .container { grid-template-columns: 1fr; padding: 15px; } 
+            .header h1 { font-size: 20px; }
+        }
     </style>
 </head>
 <body>
     <div class="header"><h1>BAKU NEWS 📰</h1></div>
     <div class="container">
         {% if not data %}
-            <p style="margin-top:50px;">Xəbərlər gətirilir... <br> 15 saniyə sonra səhifəni yeniləyin (F5).</p>
-            <script>setTimeout(function(){ location.reload(); }, 10000);</script>
+            <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
+                <p>Xəbərlər gətirilir... Zəhmət olmasa 10 saniyə sonra yeniləyin.</p>
+            </div>
         {% else %}
             {% for x in data %}
             <div class="news-card">
@@ -83,34 +91,27 @@ html_template = """
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
-    # DİQQƏT: Bu sətir köhnə cədvəli tamamilə silir!
+    # Bazanı təmizləyib yenidən yaradırıq
     cursor.execute("DROP TABLE IF EXISTS xeberler")
-    
-    # İndi isə təzə və düzgün sütunlarla yenidən yaradırıq
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, 
          link TEXT UNIQUE, 
          img_url TEXT)''')
-    
     conn.commit()
     conn.close()
-    print("Baza tamamilə sıfırlandı və təzədən yaradıldı!")
+    print("Baza sıfırlandı.")
 
 def fetch_milli():
     while True:
         try:
-            # 1. Milli.az-a daxil oluruq
             url = "https://news.milli.az/society/"
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            headers = {'User-Agent': 'Mozilla/5.0'}
             req = urllib.request.Request(url, headers=headers)
             
             with urllib.request.urlopen(req, timeout=30) as response:
                 soup = BeautifulSoup(response.read(), "html.parser")
-                
-                # 2. Saytdakı xəbər bloklarını tapırıq (limit yoxdur, hamısını götürürük)
-                items = soup.select(".category-news-item, .news-item, .p-news-item, .news-item-title")
+                items = soup.select(".category-news-item, .news-item, .p-news-item")
                 
                 if not items:
                     items = soup.find_all("a", href=True)
@@ -119,75 +120,42 @@ def fetch_milli():
                 cursor = conn.cursor()
                 
                 new_count = 0
-                # 3. İLK 100 XƏBƏRİ BAZAYA VURURUQ (Sayt dərhal dolsun deyə)
                 for item in items[:100]:
                     try:
                         a_tag = item if item.name == "a" else item.find("a", href=True)
                         if a_tag:
                             link = a_tag["href"]
-                            if not link.startswith("http"):
-                                link = "https://news.milli.az" + link
-                            
+                            if not link.startswith("http"): link = "https://news.milli.az" + link
                             title = a_tag.get("title") or a_tag.text.strip()
-                            
-                            img_tag = item.find("img")
-                            img_url = ""
-                            if img_tag:
-                                img_url = img_tag.get("src") or img_tag.get("data-src") or ""
-
                             if title and len(title) > 10:
-                                # INSERT OR IGNORE sayəsində:
-                                # Əgər baza boşdursa, 100-nü də bura yazacaq.
-                                # Əgər baza doludursa, köhnələri keçib ancaq yeniləri əlavə edəcək.
-                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, img_url) VALUES (?, ?, ?)", (title, link, img_url))
+                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
                                 if cursor.rowcount > 0:
                                     new_count += 1
-                    except:
-                        continue
+                    except: continue
                 
                 conn.commit()
                 conn.close()
-                
-                if new_count > 0:
-                    print(f"Bot: {new_count} xəbər uğurla işlənildi. Sayt yeniləndi.")
-                else:
-                    print("Bot: Yeni xəbər tapılmadı (Baza artıq doludur).")
-
+                print(f"Bot: {new_count} yeni xəbər.")
         except Exception as e:
-            print(f"Bot xətası: {e}")
-        
-        # 4. 15 dəqiqə (900 saniyə) gözləyirik və dövrə başa çatır
+            print(f"Bot xetasi: {e}")
         time.sleep(900)
 
 @app.route('/')
 def home():
     try:
-        # Baza ilə bağlantı qururuq
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # BAX BU SƏTİRİ DƏQİQ YOXLAYIN:
-        # 'xeberler' cədvəlindən ən son 100 xəbəri çəkirik
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
-        
         data = cursor.fetchall()
         conn.close()
-        
-        # Əgər data boşdursa, ekrana mesaj veririk (yoxlamaq üçün)
-        if not data:
-            return "Baza doludur deyir, amma içində məlumat tapılmadı. Zəhmət olmasa bazanı silib yenidən başladın."
-            
-        # HTML-ə göndəririk
-        return render_template_string(html_template, data=data)
-        
+        return render_template_string(HTML_TEMPLATE, data=data)
     except Exception as e:
-        # Hər hansı xəta olsa (məsələn, cədvəl tapılmasa) bura düşəcək
-        return f"Saytda xəta baş verdi: {e}"
+        return f"Xəta: {e}"
+
 # Başlatma
 init_db()
 threading.Thread(target=fetch_milli, daemon=True).start()
 
 if __name__ == '__main__':
-    # Railway üçün port ayarı
-    p = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=p)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
