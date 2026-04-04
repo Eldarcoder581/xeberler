@@ -106,6 +106,14 @@ def fetch_milli():
                 cursor = conn.cursor()
                 for item in items:
                     try:
+                        # Hər xəbər elementinin içində şəkli axtarırıq
+img_tag = item.find("img")
+
+# Şəkil linkini götürürük
+img_url = ""
+if img_tag:
+    # Milli.az bəzən 'src', bəzən də 'data-src' istifadə edir
+    img_url = img_tag.get("src") or img_tag.get("data-src") or ""
                         a_tag = item.find("a") if item.name == "div" else item
                         title = a_tag.text.strip()
                         link = a_tag["href"]
