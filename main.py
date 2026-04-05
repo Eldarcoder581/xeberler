@@ -92,7 +92,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     # Bazanı təmizləyib yenidən yaradırıq
-    cursor.execute("DROP TABLE IF EXISTS xeberler")
+  
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, 
