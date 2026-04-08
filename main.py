@@ -175,7 +175,7 @@ def fetch_milli():
         time.sleep(900)
                             
 
-@apprroute('/')
+@app.route('/')
 def home():
     try:
         conn = sqlite3.connect(DB_PATH)
