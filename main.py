@@ -123,7 +123,7 @@ def fetch_milli():
 
             for target in targets:
                 try:
-                    headers = {'User-Agent': 'Mozilla/5.0'}
+                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                     req = urllib.request.Request(target["url"], headers=headers)
                     
                     with urllib.request.urlopen(req, timeout=30) as response:
@@ -133,33 +133,27 @@ def fetch_milli():
                         count_per_site = 0 
                         
                         for item in links:
-                            # İlk dəfə işləyirsə, hər saytdan yalnız 5 dənə çək (sayt boş görünməsin)
+                            # İlk dəfədirsə, hər saytdan 5 dənə mənalı xəbər tapana qədər davam et
                             if first_run and count_per_site >= 5:
                                 break
                                 
                             link = item["href"]
-                            
-                            # Linkləri tam URL halına salmaq
                             if not link.startswith("http"):
                                 try:
                                     base_parts = target["url"].split('/')
                                     domain = f"{base_parts[0]}//{base_parts[2]}"
                                     link = domain + (link if link.startswith('/') else '/' + link)
-                                except:
-                                    continue
+                                except: continue
                             
                             title = item.get("title") or item.text.strip()
 
-                            # Başlıq kifayət qədər uzundursa
                             if len(title) > 20:
                                 full_title = f"[{target['name']}] {title}"
-                                
-                                # INSERT OR IGNORE: Eyni linkli xəbər varsa, yazmayacaq (təkrarın qarşısı)
                                 cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (full_title, link))
                                 
+                                count_per_site += 1
                                 if cursor.rowcount > 0:
                                     total_added += 1
-                                    count_per_site += 1
                                     
                 except Exception as inner_e:
                     print(f"Xəta ({target['name']}): {inner_e}")
@@ -168,22 +162,20 @@ def fetch_milli():
             conn.commit()
             conn.close()
             
-            # İlk dövrə bitəndən sonra limitsiz rejimə keçid
             if first_run:
-                print(f"Bot: İlk doldurma bitdi ({total_added} xəbər). İndi limitsiz rejimə keçir.")
+                print(f"Bot: İlk doldurma (hər saytdan 5 xəbər) bitdi. İndi limitsiz rejimlə 15 dəqiqədən bir yoxlayacaq.")
                 first_run = False
             else:
-                print(f"Bot: Yenilənmə bitdi. {total_added} yeni məlumat əlavə edildi.")
+                print(f"Bot: Yenilənmə bitdi. {total_added} yeni xəbər əlavə edildi.")
 
         except Exception as e:
             print(f"Ümumi bot xətası: {e}")
         
-        # 15 dəqiqə gözləyirik
+        # Sənin istədiyin kimi: 15 dəqiqə (900 saniyə)
         time.sleep(900)
-    
-        
+                            
 
-@app.route('/')
+@apprroute('/')
 def home():
     try:
         conn = sqlite3.connect(DB_PATH)
