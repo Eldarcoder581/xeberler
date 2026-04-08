@@ -103,56 +103,84 @@ def init_db():
     print("Baza sıfırlandı.")
 
 def fetch_milli():
+    targets = [
+        {"url": "https://think-tanks.az/", "name": "Think-Tanks"},
+        {"url": "https://aircenter.az/az", "name": "Air Center"},
+        {"url": "https://caliber.az/az/", "name": "Caliber.az"},
+        {"url": "https://az.trend.az/", "name": "Trend News"},
+        {"url": "https://ada.edu.az/en/news", "name": "ADA University"},
+        {"url": "https://news.milli.az/society/", "name": "Milli.az"}
+    ]
+    
+    # İlk başlanğıc üçün bayraq (flag)
+    first_run = True
+
     while True:
         try:
-            url = "https://news.milli.az/society/"
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            req = urllib.request.Request(url, headers=headers)
-            
-            with urllib.request.urlopen(req, timeout=30) as response:
-                soup = BeautifulSoup(response.read(), "html.parser")
-                
-                # BÜTÜN linkləri tapırıq (Burada [:100] limitini sildik)
-                items = soup.find_all("a", href=True)
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            total_added = 0
 
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                
-                added_now = 0
-                for item in items:
-                    link = item["href"]
+            for target in targets:
+                try:
+                    headers = {'User-Agent': 'Mozilla/5.0'}
+                    req = urllib.request.Request(target["url"], headers=headers)
                     
-                    # Xəbər linki olub-olmadığını yoxlayırıq
-                    if "/society/" in link or link.split('/')[-1].isdigit():
-                        if not link.startswith("http"):
-                            link = "https://news.milli.az" + link
+                    with urllib.request.urlopen(req, timeout=30) as response:
+                        soup = BeautifulSoup(response.read(), "html.parser")
+                        links = soup.find_all("a", href=True)
                         
-                        title = item.get("title") or item.text.strip()
+                        count_per_site = 0 
                         
-                        # Başlıq boş deyilsə bazaya göndəririk
-                        if len(title) > 15:
-                            # BU HİSSƏ TƏKRARIN QARŞISINI ALIR:
-                            # 'link' sütunu UNIQUE olduğu üçün eyni linki ikinci dəfə yazmayacaq
-                            cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (title, link))
+                        for item in links:
+                            # İlk dəfə işləyirsə, hər saytdan yalnız 5 dənə çək (sayt boş görünməsin)
+                            if first_run and count_per_site >= 5:
+                                break
+                                
+                            link = item["href"]
                             
-                            # Əgər bazaya həqiqətən yeni sətir əlavə edildisə, sayırıq
-                            if cursor.rowcount > 0:
-                                added_now += 1
-                
-                conn.commit()
-                conn.close()
-                
-                if added_now > 0:
-                    print(f"Bot: {added_now} dənə tam yeni xəbər tapıldı və əlavə edildi.")
-                else:
-                    print("Bot: Yeni xəbər yoxdur, hamısı artıq bazada var.")
+                            # Linkləri tam URL halına salmaq
+                            if not link.startswith("http"):
+                                try:
+                                    base_parts = target["url"].split('/')
+                                    domain = f"{base_parts[0]}//{base_parts[2]}"
+                                    link = domain + (link if link.startswith('/') else '/' + link)
+                                except:
+                                    continue
+                            
+                            title = item.get("title") or item.text.strip()
+
+                            # Başlıq kifayət qədər uzundursa
+                            if len(title) > 20:
+                                full_title = f"[{target['name']}] {title}"
+                                
+                                # INSERT OR IGNORE: Eyni linkli xəbər varsa, yazmayacaq (təkrarın qarşısı)
+                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (full_title, link))
+                                
+                                if cursor.rowcount > 0:
+                                    total_added += 1
+                                    count_per_site += 1
+                                    
+                except Exception as inner_e:
+                    print(f"Xəta ({target['name']}): {inner_e}")
+                    continue
+
+            conn.commit()
+            conn.close()
+            
+            # İlk dövrə bitəndən sonra limitsiz rejimə keçid
+            if first_run:
+                print(f"Bot: İlk doldurma bitdi ({total_added} xəbər). İndi limitsiz rejimə keçir.")
+                first_run = False
+            else:
+                print(f"Bot: Yenilənmə bitdi. {total_added} yeni məlumat əlavə edildi.")
 
         except Exception as e:
-            print(f"Bot xətası: {e}")
+            print(f"Ümumi bot xətası: {e}")
         
-        # 15 dəqiqə (900 saniyə) gözləyirik
+        # 15 dəqiqə gözləyirik
         time.sleep(900)
-        
+    
         
 
 @app.route('/')
