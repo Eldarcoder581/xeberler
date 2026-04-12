@@ -8,7 +8,7 @@
         body { background: #0b0e14; color: white; font-family: sans-serif; padding: 20px; line-height: 1.6; }
         .wrap { max-width: 800px; margin: auto; }
         .back { color: #ffeb3b; text-decoration: none; font-weight: bold; }
-        img { width: 100%; border-radius: 12px; margin: 20px 0; max-height: 450px; object-fit: cover; }
+        img { width: 100%; border-radius: 12px; margin: 20px 0; }
         .comm-box { background: #1c2128; padding: 20px; border-radius: 12px; margin-top: 40px; }
         input, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #0b0e14; border: 1px solid #30363d; color: white; border-radius: 6px; box-sizing: border-box; }
         button { background: #ffeb3b; border: none; padding: 12px 25px; cursor: pointer; border-radius: 6px; font-weight: bold; width: 100%; }
@@ -18,10 +18,9 @@
 <body>
     <div class="wrap">
         <a href="/" class="back">← Ana Səhifə</a>
-        <h1 style="color: #ffeb3b; margin-top: 20px;">{{ news[1] }}</h1>
+        <h1 style="color: #ffeb3b;">{{ news[1] }}</h1>
         <img src="{{ news[4] or 'https://via.placeholder.com/800x400' }}">
         <p style="font-size: 18px;">{{ news[3] }}</p>
-        <p><a href="{{ news[2] }}" target="_blank" style="color: #ffeb3b;">Orijinal mənbəyə keçid</a></p>
         
         <div class="comm-box">
             <h3>Şərhlər</h3>
@@ -31,12 +30,12 @@
             </div>
             {% endfor %}
 
-            <h4 style="margin-top: 25px;">Şərhinizi yazın</h4>
+            <h4 style="margin-top: 20px;">Şərhinizi yazın</h4>
             <form action="/send_serh" method="POST">
                 <input type="hidden" name="xeber_id" value="{{ news[0] }}">
                 <input type="text" name="ad" placeholder="Adınız" required>
                 <textarea name="mesaj" placeholder="Mesajınız..." rows="4" required></textarea>
-                <button type="submit">Göndər</button>
+                <button type="submit">Şərhi Göndər</button>
             </form>
         </div>
     </div>
