@@ -13,13 +13,27 @@ DB_PATH = os.path.join(BASE_DIR, 'bakunews.db')
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    # Cədvəlləri yaradın
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, link TEXT UNIQUE, meqale TEXT, 
          img_url TEXT, kateqoriya TEXT DEFAULT 'Ümumi')''')
+    
+    # Yoxlayırıq əgər baza boşdursa, 40 dənə nümunə xəbər əlavə edirik
+    cursor.execute("SELECT COUNT(*) FROM xeberler")
+    count = cursor.fetchone()[0]
+    
+    if count == 0:
+        for i in range(1, 41):
+            placeholder_title = f"Xəbər yüklənir... Nümunə xəbər #{i}"
+            placeholder_link = f"https://example.com/placeholder-{i}"
+            placeholder_img = "https://via.placeholder.com/400x250?text=BAKU+NEWS"
+            cursor.execute("""INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) 
+                              VALUES (?, ?, ?, ?, ?)""", 
+                           (placeholder_title, placeholder_link, "Tezliklə burada real xəbər görünəcək.", placeholder_img, "Ümumi"))
+    
     cursor.execute('''CREATE TABLE IF NOT EXISTS serhler 
-        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-         xeber_id INTEGER, ad TEXT, mesaj TEXT)''')
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, xeber_id INTEGER, ad TEXT, mesaj TEXT)''')
     conn.commit()
     conn.close()
 
