@@ -29,8 +29,8 @@ def get_category(title):
     t = title.lower()
     if any(x in t for x in ['futbol', 'idman', 'oyun', 'klub']): return 'İdman'
     if any(x in t for x in ['dollar', 'euro', 'manat', 'iqtisadiyyat', 'bank']): return 'İqtisadiyyat'
-    if any(x in t for x in ['iphone', 'it', 'texnologiya', 'smartfon', 'elm']): return 'Texnologiya'
-    if any(x in t for x in ['paşinyan', 'siyasət', 'prezident', 'nazir', 'ordu']): return 'Siyasət'
+    if any(x in t for x in ['iphone', 'it', 'texnologiya', 'smartfon']): return 'Texnologiya'
+    if any(x in t for x in ['paşinyan', 'siyasət', 'prezident', 'nazir']): return 'Siyasət'
     return 'Dünya'
 
 def get_live_weather(city="Quba"):
@@ -62,6 +62,7 @@ def bot_logic():
                         if len(title) > 30 and link.startswith("http"):
                             cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
                             if not cursor.fetchone():
+                                # Şəkil axtarışı
                                 img_url = ""
                                 try:
                                     c_req = urllib.request.Request(link, headers=headers)
@@ -70,9 +71,10 @@ def bot_logic():
                                         img_tag = c_soup.find('meta', property="og:image")
                                         if img_tag: img_url = img_tag['content']
                                 except: pass
+                                
                                 cat = get_category(title)
                                 cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
-                                               (title, link, "Orijinal xəbəri oxumaq üçün mənbəyə keçid edin.", img_url, cat))
+                                               (title, link, "Ətraflı məlumat üçün mənbəyə keçid edin.", img_url, cat))
             conn.commit()
             conn.close()
         except: pass
@@ -83,26 +85,23 @@ def home():
     city = request.args.get('city', 'Quba')
     cat = request.args.get('cat')
     q = request.args.get('q')
-    page = request.args.get('page', 1, type=int)
-    per_page = 40
-    offset = (page - 1) * per_page
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    # BAXIŞ SAYI ARTIRILIR
     cursor.execute('UPDATE statistika SET baxish_sayi = baxish_sayi + 1 WHERE id = 1')
     conn.commit()
     cursor.execute('SELECT baxish_sayi FROM statistika WHERE id = 1')
     say = cursor.fetchone()[0]
     
-    info = {"usd": "1.7000", "hava": get_live_weather(city), "say": say, "next_page": page + 1, "current_cat": cat or ""}
+    info = {"usd": "1.7000", "hava": get_live_weather(city), "say": say}
     
     if q:
         cursor.execute("SELECT * FROM xeberler WHERE bashliq LIKE ? ORDER BY id DESC", ('%'+q+'%',))
     elif cat:
-        cursor.execute("SELECT * FROM xeberler WHERE kateqoriya = ? ORDER BY id DESC LIMIT ? OFFSET ?", (cat, per_page, offset))
+        cursor.execute("SELECT * FROM xeberler WHERE kateqoriya = ? ORDER BY id DESC LIMIT 40", (cat,))
     else:
-        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT ? OFFSET ?", (per_page, offset))
-    
+        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40")
     all_news = cursor.fetchall()
     conn.close()
     return render_template("index.html", all_news=all_news, info=info)
