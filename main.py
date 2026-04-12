@@ -80,10 +80,24 @@ def bot_logic():
                                         c_soup = BeautifulSoup(c_res.read(), "html.parser")
                                         img_tag = c_soup.find('meta', property="og:image")
                                         if img_tag: img_url = img_tag['content']
-                                        paragraphs = c_soup.find_all('p')
-                                        if paragraphs:
-                                            summary = " ".join([p.text.strip() for p in paragraphs[:3]])
-                                            if len(summary) > 300: summary = summary[:300] + "..."
+                                        # ... bot_logic içində paragraphs hissəsini belə dəyiş:
+paragraphs = c_soup.find_all('p')
+content_list = []
+
+for p in paragraphs:
+    text = p.text.strip()
+    # Əgər paraqrafda sayt adları və ya menyu elementləri varsa, onları keçirik
+    blacklist = ['turkic.world', 'idman.biz', 'azernews.az', 'trend.az', 'day.az', 'hava proqnozu', 'pul']
+    if any(word in text.lower() for word in blacklist):
+        continue
+    
+    # Boş olmayan və mənalı uzunluqda olan mətnləri yığırıq
+    if len(text) > 30:
+        content_list.append(text)
+
+# İlk 3 təmiz paraqrafı birləşdiririk
+summary = " ".join(content_list[:3])
+if len(summary) > 500: summary = summary[:500] + "..."
                                 except: pass
                                 
                                 cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
