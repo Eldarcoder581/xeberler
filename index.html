@@ -10,20 +10,24 @@
         header { background: #161b22; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ffeb3b; position: sticky; top: 0; z-index: 1000; }
         .logo { font-size: 22px; font-weight: bold; color: #ffeb3b; text-decoration: none; }
         
-        /* Sidebar və Search */
         .sidebar { position: fixed; top: 0; left: -260px; width: 260px; height: 100%; background: #161b22; transition: 0.3s; z-index: 2000; padding-top: 60px; border-right: 1px solid #ffeb3b; }
         .sidebar.active { left: 0; }
         .sidebar a { display: block; padding: 15px 25px; color: white; text-decoration: none; border-bottom: 1px solid #30363d; }
         #searchBar { display: none; position: fixed; top: 0; width: 100%; background: #161b22; padding: 15px; z-index: 1500; border-bottom: 1px solid #ffeb3b; text-align: center; }
         #searchBar input { width: 70%; padding: 10px; border-radius: 5px; border: none; }
 
-        /* SLIDER DIZAYNI */
-        .slider-wrap { width: 100%; max-width: 1200px; margin: 15px auto; overflow: hidden; border-radius: 12px; position: relative; height: 320px; border: 1px solid #30363d; background: #1c2128; }
+        /* SLIDER DIZAYNI + OX İŞARƏLƏRİ */
+        .slider-wrap { width: 100%; max-width: 1200px; margin: 15px auto; overflow: hidden; border-radius: 12px; position: relative; height: 350px; border: 1px solid #30363d; background: #1c2128; }
         .slides { display: flex; transition: 0.5s; height: 100%; }
         .slide { min-width: 100%; position: relative; text-decoration: none; }
         .slide img { width: 100%; height: 100%; object-fit: cover; }
-        .slide-info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 25px 15px; }
-        .slide-info h2 { margin: 0; font-size: 20px; color: #ffeb3b; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .slide-info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 30px 15px; }
+        .slide-info h2 { margin: 0; font-size: 22px; color: #ffeb3b; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+
+        .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: #ffeb3b; border: none; padding: 15px; cursor: pointer; font-size: 20px; z-index: 10; border-radius: 50%; transition: 0.3s; }
+        .nav-btn:hover { background: #ffeb3b; color: #000; }
+        .prev { left: 15px; }
+        .next { right: 15px; }
 
         /* GRID DIZAYNI */
         .container { max-width: 1200px; margin: auto; padding: 15px; }
@@ -34,10 +38,8 @@
         .card-body { padding: 15px; flex-grow: 1; }
         .card-body h3 { font-size: 16px; margin: 8px 0; line-height: 1.4; color: #eee; }
 
-        /* Footer və Düymə */
         footer { position: fixed; bottom: 0; width: 100%; background: #161b22; padding: 12px; border-top: 1px solid #30363d; text-align: center; color: #ffeb3b; z-index: 1000; display: flex; justify-content: center; gap: 25px; font-size: 14px; }
-        .more-btn { display: inline-block; background: #ffeb3b; color: #000; padding: 12px 30px; border-radius: 8px; font-weight: bold; text-decoration: none; margin: 30px 0; transition: 0.2s; }
-        .more-btn:hover { background: #fff; }
+        .more-btn { display: inline-block; background: #ffeb3b; color: #000; padding: 12px 30px; border-radius: 8px; font-weight: bold; text-decoration: none; margin: 30px 0; transition: 0.2s; border: none; cursor: pointer; }
         
         #cityList { display: none; position: absolute; bottom: 50px; background: #161b22; border: 1px solid #ffeb3b; border-radius: 5px; width: 130px; }
         #cityList a { display: block; padding: 10px; color: white; text-decoration: none; border-bottom: 1px solid #30363d; }
@@ -71,6 +73,8 @@
 <div class="container">
     {% if all_news %}
         <div class="slider-wrap">
+            <button class="nav-btn prev" onclick="moveSlide(-1)">&#10094;</button>
+            <button class="nav-btn next" onclick="moveSlide(1)">&#10095;</button>
             <div class="slides" id="slider">
                 {% for item in all_news[:5] %}
                 <a href="/xeber/{{ item[0] }}" class="slide">
@@ -145,12 +149,23 @@
     // Slider məntiqi
     let currentSlide = 0;
     const slidesContainer = document.getElementById('slider');
+    
+    function moveSlide(n) {
+        if (!slidesContainer) return;
+        const totalSlides = slidesContainer.children.length;
+        currentSlide += n;
+        
+        if (currentSlide >= totalSlides) currentSlide = 0;
+        if (currentSlide < 0) currentSlide = totalSlides - 1;
+        
+        slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
+    }
+
+    // Avtomatik sürüşmə
     if (slidesContainer && slidesContainer.children.length > 0) {
         setInterval(() => {
-            currentSlide++;
-            if (currentSlide >= slidesContainer.children.length) currentSlide = 0;
-            slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
-        }, 4500);
+            moveSlide(1);
+        }, 5000);
     }
 </script>
 </body>
