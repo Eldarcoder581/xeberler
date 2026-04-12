@@ -92,7 +92,7 @@ def bot_logic():
                                 conn.commit()
             conn.close()
         except Exception as e: print(f"Bot xətası: {e}")
-        time.sleep(600) # 10 dəqiqə gözlə
+        time.sleep(30) # 10 dəqiqə gözlə
 
 @app.route('/')
 def home():
