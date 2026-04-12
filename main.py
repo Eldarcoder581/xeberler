@@ -4,190 +4,130 @@ import threading
 import time
 import os
 from bs4 import BeautifulSoup
-from flask import Flask, render_template_string
+from flask import Flask, render_template
 
-app = Flask(__name__)
+# Qovluq adını bura birbaşa bağladım
+app = Flask(__name__, template_folder='xeberler')
 DB_PATH = 'bakunews.db'
 
-# --- HTML DİZAYNI ---
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="az">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BAKU NEWS</title>
-    <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #0b0e14; color: #e1e1e1; margin: 0; padding: 0; }
-        .header { background: #161b22; padding: 20px; border-bottom: 2px solid #58a6ff; text-align: center; position: sticky; top: 0; z-index: 100; }
-        
-        /* Grid Sistemi: Yan-yana 4 dənə */
-        .container { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 20px; 
-            padding: 25px; 
-            max-width: 1400px; 
-            margin: auto; 
-        }
-
-        .news-card { 
-            background: #1c2128; 
-            padding: 20px; 
-            border-radius: 12px; 
-            border: 1px solid #30363d; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            transition: transform 0.2s;
-        }
-
-        .news-card:hover { transform: translateY(-5px); border-color: #58a6ff; }
-
-        h3 { font-size: 16px; line-height: 1.4; color: #adbac7; margin: 0 0 15px 0; height: 65px; overflow: hidden; }
-        
-        .btn { 
-            display: block; 
-            background: #238636; 
-            color: white; 
-            padding: 10px; 
-            border-radius: 6px; 
-            text-decoration: none; 
-            font-weight: bold; 
-            text-align: center;
-            font-size: 14px;
-        }
-
-        /* Ekran tənzimləmələri */
-        @media (max-width: 1100px) { .container { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 850px) { .container { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 550px) { 
-            .container { grid-template-columns: 1fr; padding: 15px; } 
-            .header h1 { font-size: 20px; }
-        }
-    </style>
-</head>
-<body>
-    <div class="header"><h1>BAKU NEWS 📰</h1></div>
-    <div class="container">
-        {% if not data %}
-            <div style="grid-column: 1/-1; text-align: center; margin-top: 50px;">
-                <p>Xəbərlər gətirilir... Zəhmət olmasa 10 saniyə sonra yeniləyin.</p>
-            </div>
-        {% else %}
-            {% for x in data %}
-            <div class="news-card">
-                <h3>{{ x[1] }}</h3>
-                <a class="btn" href="{{ x[2] }}" target="_blank">Xəbəri Oxu</a>
-            </div>
-            {% endfor %}
-        {% endif %}
-    </div>
-</body>
-</html>
-"""
-
+# 1. BAZA QURULMASI
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Bazanı təmizləyib yenidən yaradırıq
-  
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, 
          link TEXT UNIQUE, 
+         meqale TEXT, 
          img_url TEXT)''')
     conn.commit()
     conn.close()
-    print("Baza sıfırlandı.")
 
+# 2. BOT FUNKSİYASI (Şəkil və Məzmun çəkən)
 def fetch_milli():
     targets = [
-        {"url": "https://think-tanks.az/", "name": "Think-Tanks"},
-        {"url": "https://aircenter.az/az", "name": "Air Center"},
-        {"url": "https://caliber.az/az/", "name": "Caliber.az"},
+        {"url": "https://news.milli.az/society/", "name": "Milli.az"},
         {"url": "https://az.trend.az/", "name": "Trend News"},
-        {"url": "https://ada.edu.az/en/news", "name": "ADA University"},
-        {"url": "https://news.milli.az/society/", "name": "Milli.az"}
+        {"url": "https://caliber.az/az/", "name": "Caliber.az"},
+        {"url": "https://think-tanks.az/", "name": "Think-Tanks"}
     ]
     
-    # İlk başlanğıc üçün bayraq (flag)
-    first_run = True
-
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            total_added = 0
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
             for target in targets:
                 try:
-                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                     req = urllib.request.Request(target["url"], headers=headers)
-                    
                     with urllib.request.urlopen(req, timeout=30) as response:
                         soup = BeautifulSoup(response.read(), "html.parser")
                         links = soup.find_all("a", href=True)
                         
-                        count_per_site = 0 
-                        
                         for item in links:
-                            # İlk dəfədirsə, hər saytdan 5 dənə mənalı xəbər tapana qədər davam et
-                            if first_run and count_per_site >= 5:
-                                break
-                                
                             link = item["href"]
-                            if not link.startswith("http"):
-                                try:
-                                    base_parts = target["url"].split('/')
-                                    domain = f"{base_parts[0]}//{base_parts[2]}"
-                                    link = domain + (link if link.startswith('/') else '/' + link)
-                                except: continue
-                            
+                            if not link.startswith("http"): continue
                             title = item.get("title") or item.text.strip()
 
-                            if len(title) > 20:
-                                full_title = f"[{target['name']}] {title}"
-                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link) VALUES (?, ?)", (full_title, link))
-                                
-                                count_per_site += 1
-                                if cursor.rowcount > 0:
-                                    total_added += 1
-                                    
-                except Exception as inner_e:
-                    print(f"Xəta ({target['name']}): {inner_e}")
-                    continue
+                            if len(title) > 25:
+                                # Xəbərin içinə girmək
+                                content_text = "Məzmun yüklənir..."
+                                img_url = ""
+                                try:
+                                    c_req = urllib.request.Request(link, headers=headers)
+                                    with urllib.request.urlopen(c_req, timeout=10) as c_res:
+                                        c_soup = BeautifulSoup(c_res.read(), "html.parser")
+                                        # İlk bir neçə paraqrafı götürürük
+                                        paragraphs = c_soup.find_all('p')
+                                        content_text = " ".join([p.text.strip() for p in paragraphs[:3]])[:600]
+                                        # Şəkli götürürük
+                                        img_tag = c_soup.find('meta', property="og:image")
+                                        if img_tag: img_url = img_tag['content']
+                                except: pass
 
+                                cursor.execute("INSERT OR IGNORE INTO xeberler (bashliq, link, meqale, img_url) VALUES (?, ?, ?, ?)", 
+                                               (f"[{target['name']}] {title}", link, content_text, img_url))
+                except: continue
             conn.commit()
             conn.close()
-            
-            if first_run:
-                print(f"Bot: İlk doldurma (hər saytdan 5 xəbər) bitdi. İndi limitsiz rejimlə 15 dəqiqədən bir yoxlayacaq.")
-                first_run = False
-            else:
-                print(f"Bot: Yenilənmə bitdi. {total_added} yeni xəbər əlavə edildi.")
-
         except Exception as e:
-            print(f"Ümumi bot xətası: {e}")
-        
-        # Sənin istədiyin kimi: 15 dəqiqə (900 saniyə)
+            print(f"Bot xətası: {e}")
         time.sleep(900)
-                            
 
+# 3. ANA SƏHİFƏ (Slider + 40 Xəbər)
 @app.route('/')
 def home():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
-        data = cursor.fetchall()
+        # Slider üçün son 10
+        cursor.execute("SELECT id, bashliq, img_url FROM xeberler ORDER BY id DESC LIMIT 10")
+        slider_news = cursor.fetchall()
+        # Siyahı üçün son 40
+        cursor.execute("SELECT id, bashliq, meqale, img_url FROM xeberler ORDER BY id DESC LIMIT 40")
+        all_news = cursor.fetchall()
         conn.close()
-        return render_template_string(HTML_TEMPLATE, data=data)
+        return render_template("index.html", slider_news=slider_news, all_news=all_news)
     except Exception as e:
         return f"Xəta: {e}"
 
-# Başlatma
+# 4. DAXİLİ XƏBƏR SƏHİFƏSİ
+@app.route('/xeber/<int:news_id>')
+def news_detail(news_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT bashliq, meqale, img_url, link FROM xeberler WHERE id = ?", (news_id,))
+    news = cursor.fetchone()
+    conn.close()
+    if news:
+        return f"""
+        <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body {{ font-family: sans-serif; background: #0b0e14; color: white; padding: 20px; line-height: 1.6; }}
+                    .box {{ max-width: 800px; margin: auto; background: #1c2128; padding: 20px; border-radius: 12px; }}
+                    img {{ width: 100%; border-radius: 10px; margin: 20px 0; }}
+                    .back {{ color: #58a6ff; text-decoration: none; display: block; margin-bottom: 15px; }}
+                    h1 {{ font-size: 22px; color: #adbac7; }}
+                </style>
+            </head>
+            <body>
+                <div class="box">
+                    <a href="/" class="back">← Ana səhifəyə qayıt</a>
+                    <h1>{news[0]}</h1>
+                    <img src="{news[2] or 'https://via.placeholder.com/600x400'}">
+                    <p>{news[1]}</p>
+                    <hr>
+                    <p>Davamını oxu: <a href="{news[3]}" style="color:#238636" target="_blank">Orijinal sayta keç</a></p>
+                </div>
+            </body>
+        </html>
+        """
+    return "Xəbər tapılmadı", 404
+
+# BAŞLATMA
 init_db()
 threading.Thread(target=fetch_milli, daemon=True).start()
 
