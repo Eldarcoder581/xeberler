@@ -122,20 +122,33 @@ if not cursor.fetchone():
 
 @app.route('/')
 def home():
-    city = request.args.get('city', 'Quba')
-    cat = request.args.get('cat')
-    q = request.args.get('q')
-    info = {"usd": "1.7000", "hava": get_live_weather(city)}
+    # Axtarış sözünü (q) və səhifə nömrəsini götürürük
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 40
+    offset = (page - 1) * per_page
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    if q:
-        cursor.execute("SELECT * FROM xeberler WHERE bashliq LIKE ? ORDER BY id DESC", ('%'+q+'%',))
-    elif cat:
-        cursor.execute("SELECT * FROM xeberler WHERE kateqoriya = ? ORDER BY id DESC LIMIT 40", (cat,))
+    
+    if query:
+        # Əgər axtarış sözü yazılıbsa, həm başlıqda həm də mətndə axtar
+        search_sql = "SELECT * FROM xeberler WHERE bashliq LIKE ? OR meqale LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?"
+        search_param = f"%{query}%"
+        cursor.execute(search_sql, (search_param, search_param, per_page, offset))
     else:
-        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40")
+        # Axtarış yoxdursa, bütün xəbərləri göstər
+        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT ? OFFSET ?", (per_page, offset))
+    
     all_news = cursor.fetchall()
+    
+    info = {
+        "usd": "1.7000", 
+        "hava": get_live_weather("Quba"),
+        "next_page": page + 1,
+        "query": query  # Axtarış sözünü HTML-ə geri göndəririk
+    }
+    
     conn.close()
     return render_template("index.html", all_news=all_news, info=info)
 
