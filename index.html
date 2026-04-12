@@ -4,63 +4,95 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BAKU NEWS</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
-        body { font-family: sans-serif; margin: 0; background: #0b0e14; color: white; }
-        header { background: #161b22; padding: 15px; text-align: center; border-bottom: 2px solid #ffeb3b; }
+        body { font-family: sans-serif; margin: 0; background: #0b0e14; color: white; padding-bottom: 70px; }
+        header { background: #161b22; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ffeb3b; position: sticky; top: 0; z-index: 1000; }
+        .logo { font-size: 22px; font-weight: bold; color: #ffeb3b; text-decoration: none; }
+        .sidebar { position: fixed; top: 0; left: -260px; width: 260px; height: 100%; background: #161b22; transition: 0.3s; z-index: 2000; padding-top: 60px; border-right: 1px solid #ffeb3b; }
+        .sidebar.active { left: 0; }
+        .sidebar a { display: block; padding: 15px 25px; color: white; text-decoration: none; border-bottom: 1px solid #30363d; }
+        #searchBar { display: none; position: fixed; top: 0; width: 100%; background: #161b22; padding: 15px; z-index: 1500; border-bottom: 1px solid #ffeb3b; text-align: center; }
+        #searchBar input { width: 70%; padding: 10px; border-radius: 5px; border: none; }
         .container { max-width: 1200px; margin: auto; padding: 15px; }
-        
-        /* Slider */
-        .swiper { width: 100%; border-radius: 15px; margin-bottom: 30px; }
-        @media (max-width: 768px) { .swiper { height: 250px; } }
-        @media (min-width: 769px) { .swiper { height: 500px; } }
-        .swiper-slide img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
-        .caption { position: absolute; bottom: 0; padding: 20px; background: linear-gradient(transparent, black); width: 100%; font-size: 20px; }
-        
-        /* Siyahı */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: #1c2128; border-radius: 10px; overflow: hidden; text-decoration: none; color: white; border: 1px solid #30363d; }
-        .card img { width: 100%; height: 150px; object-fit: cover; }
-        .card-body { padding: 10px; }
-        .card h3 { font-size: 14px; margin: 0; height: 40px; overflow: hidden; }
-        
-        .swiper-button-next, .swiper-button-prev { color: #ffeb3b !important; }
+        .card { background: #1c2128; border-radius: 12px; overflow: hidden; text-decoration: none; color: white; border: 1px solid #30363d; transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); border-color: #ffeb3b; }
+        .card img { width: 100%; height: 170px; object-fit: cover; }
+        .card-body { padding: 15px; }
+        footer { position: fixed; bottom: 0; width: 100%; background: #161b22; padding: 12px; border-top: 1px solid #30363d; text-align: center; color: #ffeb3b; z-index: 1000; display: flex; justify-content: center; gap: 20px; font-size: 14px; }
+        #cityList { display: none; position: absolute; bottom: 50px; background: #161b22; border: 1px solid #ffeb3b; border-radius: 5px; width: 130px; }
+        #cityList a { display: block; padding: 10px; color: white; text-decoration: none; border-bottom: 1px solid #30363d; }
     </style>
 </head>
 <body>
-    <header><h1>BAKU NEWS</h1></header>
-    <div class="container">
-        <div class="swiper mySwiper">
-            <div class="swiper-wrapper">
-                {% for item in slider_news %}
-                <div class="swiper-slide">
-                    <a href="/xeber/{{ item[0] }}">
-                        <img src="{{ item[2] or 'https://via.placeholder.com/800x400' }}">
-                        <div class="caption">{{ item[1] }}</div>
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="swiper-button-next"></div>
-            <div class="swiper-button-prev"></div>
-        </div>
 
-        <h2>İndi oxuyurlar</h2>
-        <div class="grid">
-            {% for item in all_news %}
-            <a href="/xeber/{{ item[0] }}" class="card">
-                <img src="{{ item[3] or 'https://via.placeholder.com/400x200' }}">
-                <div class="card-body">
-                    <h3>{{ item[1] }}</h3>
-                </div>
-            </a>
-            {% endfor %}
+<div id="searchBar">
+    <form action="/" method="GET">
+        <input type="text" name="q" placeholder="Axtar...">
+        <button type="submit" style="padding:10px; background:#ffeb3b; border:none; border-radius:5px;">Tap</button>
+        <button type="button" onclick="toggleSearch()" style="background:none; color:white; border:none; font-size:25px; margin-left:10px;">&times;</button>
+    </form>
+</div>
+
+<div class="sidebar" id="sidebar">
+    <span onclick="toggleSidebar()" style="position:absolute; top:15px; right:20px; font-size:25px; color:#ffeb3b; cursor:pointer;">&times;</span>
+    <a href="/">Ana Səhifə</a>
+    <a href="/?cat=Siyasət">Siyasət</a>
+    <a href="/?cat=İdman">İdman</a>
+    <a href="/?cat=İqtisadiyyat">İqtisadiyyat</a>
+    <a href="/?cat=Texnologiya">Texnologiya</a>
+</div>
+
+<header>
+    <i class="fa fa-bars" onclick="toggleSidebar()" style="color:#ffeb3b; cursor:pointer; font-size:24px;"></i>
+    <a href="/" class="logo">BAKU NEWS</a>
+    <i class="fa fa-search" onclick="toggleSearch()" style="color:#ffeb3b; cursor:pointer; font-size:22px;"></i>
+</header>
+
+<div class="container">
+    <div class="grid">
+        {% for item in all_news %}
+        <a href="/xeber/{{ item[0] }}" class="card">
+            <img src="{{ item[4] or 'https://via.placeholder.com/400x250' }}">
+            <div class="card-body">
+                <small style="color:#ffeb3b; font-weight:bold;">{{ item[5] }}</small>
+                <h3 style="font-size:16px; margin:8px 0;">{{ item[1] }}</h3>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="/?{% if info.current_cat %}cat={{ info.current_cat }}&{% endif %}page={{ info.next_page }}" style="text-decoration: none; background: #ffeb3b; color: #000; padding: 12px 25px; border-radius: 8px; font-weight: bold; display: inline-block;">
+        Daha çox xəbər gör
+    </a>
+</div>
+
+<footer>
+    <div><i class="fa fa-money-bill-wave"></i> USD: {{ info.usd }}</div>
+    <div style="position:relative">
+        <div onclick="toggleCityMenu()" style="cursor:pointer"><i class="fa fa-temperature-high"></i> {{ info.hava }}</div>
+        <div id="cityList">
+            <a href="/?city=Baku">Bakı</a>
+            <a href="/?city=Quba">Quba</a>
+            <a href="/?city=Ganja">Gəncə</a>
         </div>
     </div>
+    <div style="border-left: 1px solid #30363d; padding-left: 15px;"><i class="fa fa-eye"></i> Baxış: {{ info.say }}</div>
+</footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script>
-        new Swiper(".mySwiper", { loop: true, navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" }, autoplay: { delay: 3000 } });
-    </script>
+<script>
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+    function toggleSearch() { 
+        var s = document.getElementById('searchBar');
+        s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+    }
+    function toggleCityMenu() {
+        var c = document.getElementById('cityList');
+        c.style.display = (c.style.display === 'block') ? 'none' : 'block';
+    }
+</script>
 </body>
 </html>
