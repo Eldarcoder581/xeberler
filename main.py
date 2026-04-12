@@ -17,17 +17,6 @@ def init_db():
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, link TEXT UNIQUE, meqale TEXT, 
          img_url TEXT, kateqoriya TEXT DEFAULT 'Ümumi')''')
-    
-    cursor.execute("SELECT COUNT(*) FROM xeberler")
-    count = cursor.fetchone()[0]
-    
-    if count == 0:
-        for i in range(1, 41):
-            cursor.execute("""INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) 
-                              VALUES (?, ?, ?, ?, ?)""", 
-                           (f"Xəbər yüklənir... Nümunə xəbər #{i}", f"https://example.com/{i}", 
-                            "Tezliklə burada real xəbər görünəcək.", "https://via.placeholder.com/400x250", "Ümumi"))
-    
     cursor.execute('''CREATE TABLE IF NOT EXISTS serhler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, xeber_id INTEGER, ad TEXT, mesaj TEXT)''')
     conn.commit()
@@ -60,10 +49,10 @@ def bot_logic():
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             for target in targets:
-                count = 0
                 req = urllib.request.Request(target["url"], headers=headers)
                 with urllib.request.urlopen(req, timeout=15) as res:
                     soup = BeautifulSoup(res.read(), "html.parser")
+                    count = 0
                     for item in soup.find_all("a", href=True):
                         if count >= target["limit"]: break
                         link = item["href"]
@@ -80,45 +69,41 @@ def bot_logic():
                                         c_soup = BeautifulSoup(c_res.read(), "html.parser")
                                         img_tag = c_soup.find('meta', property="og:image")
                                         if img_tag: img_url = img_tag['content']
-                                        # ... bot_logic içində paragraphs hissəsini belə dəyiş:
-paragraphs = c_soup.find_all('p')
-content_list = []
-
-for p in paragraphs:
-    text = p.text.strip()
-    # Əgər paraqrafda sayt adları və ya menyu elementləri varsa, onları keçirik
-    blacklist = ['turkic.world', 'idman.biz', 'azernews.az', 'trend.az', 'day.az', 'hava proqnozu', 'pul']
-    if any(word in text.lower() for word in blacklist):
-        continue
-    
-    # Boş olmayan və mənalı uzunluqda olan mətnləri yığırıq
-    if len(text) > 30:
-        content_list.append(text)
-
-# İlk 3 təmiz paraqrafı birləşdiririk
-summary = " ".join(content_list[:3])
-if len(summary) > 500: summary = summary[:500] + "..."
-                                except: pass
+                                        
+                                        # Təmizləmə və Xülasə hissəsi
+                                        paragraphs = c_soup.find_all('p')
+                                        content_list = []
+                                        blacklist = ['turkic.world', 'idman.biz', 'azernews.az', 'trend.az', 'day.az', 'hava proqnozu', 'pul']
+                                        
+                                        for p in paragraphs:
+                                            text = p.text.strip()
+                                            if not any(word in text.lower() for word in blacklist) and len(text) > 30:
+                                                content_list.append(text)
+                                        
+                                        if content_list:
+                                            summary = " ".join(content_list[:3])
+                                            if len(summary) > 500: summary = summary[:500] + "..."
+                                except:
+                                    pass
                                 
                                 cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
                                                (title, link, summary, img_url, get_category(title)))
                                 count += 1
                                 conn.commit()
             conn.close()
-        except Exception as e: print(f"Bot xətası: {e}")
-        time.sleep(30) # 10 dəqiqə gözlə
+        except Exception as e:
+            print(f"Bot xətası: {e}")
+        time.sleep(600) # 10 dəqiqə gözlə
 
 @app.route('/')
 def home():
-    query = request.args.get('q', '').strip().lower() # Kiçik hərfə çeviririk
+    query = request.args.get('q', '').strip().lower()
     page = request.args.get('page', 1, type=int)
     offset = (page - 1) * 40
-    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     if query:
-        # LOWER istifadə edərək axtarışı daha dəqiq edirik
         sql = """SELECT * FROM xeberler 
                  WHERE LOWER(bashliq) LIKE ? OR LOWER(meqale) LIKE ? 
                  ORDER BY id DESC LIMIT 40 OFFSET ?"""
@@ -128,15 +113,7 @@ def home():
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40 OFFSET ?", (offset,))
     
     all_news = cursor.fetchall()
-    
-    # Əgər axtarışda nəticə yoxdursa, boş qutular yerinə bir mesaj göstərək
-    info = {
-        "usd": "1.7000", 
-        "hava": get_live_weather("Quba"), 
-        "next_page": page + 1, 
-        "query": query,
-        "results_found": len(all_news) > 0 # Nəticə olub-olmadığını yoxlayırıq
-    }
+    info = {"usd": "1.7000", "hava": get_live_weather("Quba"), "next_page": page + 1, "query": query, "results_found": len(all_news) > 0}
     conn.close()
     return render_template("index.html", all_news=all_news, info=info)
 
