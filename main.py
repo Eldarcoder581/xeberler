@@ -84,20 +84,33 @@ def bot_logic():
                         # Qısa başlıqları və lazımsız linkləri keçirik
                         if len(title) > 25 and "http" in link:
                             cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
-                            if not cursor.fetchone():
-                                # Xəbərin içindən əsas şəkli çəkmək
-                                img_url = ""
-                                try:
-                                    c_req = urllib.request.Request(link, headers=headers)
-                                    with urllib.request.urlopen(c_req, timeout=5) as c_res:
-                                        c_soup = BeautifulSoup(c_res.read(), "html.parser")
-                                        img_tag = c_soup.find('meta', property="og:image")
-                                        if img_tag: img_url = img_tag['content']
-                                except: pass
-                                
-                                cat = get_category(title)
-                                cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
-                                               (title, link, "Ətraflı məlumat üçün mənbəyə keçid edin.", img_url, cat))
+                            # main.py içində bot_logic-in içini bu hissə ilə yenilə:
+# ... (əvvəlki kodlar)
+if not cursor.fetchone():
+    img_url = ""
+    summary = "Məzmun yüklənir..."
+    try:
+        c_req = urllib.request.Request(link, headers=headers)
+        with urllib.request.urlopen(c_req, timeout=5) as c_res:
+            c_soup = BeautifulSoup(c_res.read(), "html.parser")
+            
+            # Şəkli tapmaq
+            img_tag = c_soup.find('meta', property="og:image")
+            if img_tag: img_url = img_tag['content']
+            
+            # Mətni tapmaq (Milli.az və Trend üçün p teqlərini yığırıq)
+            paragraphs = c_soup.find_all('p')
+            if paragraphs:
+                # İlk 3-4 cümləni və ya paraqrafı götürürük
+                summary = " ".join([p.text.strip() for p in paragraphs[:3]])
+                if len(summary) > 300: summary = summary[:300] + "..."
+    except: pass
+
+    cat = get_category(title)
+    # Bura diqqət: meqale hissəsinə 'summary' dəyişənini yazırıq
+    cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
+                   (title, link, summary, img_url, cat))
+# ... (davamı)
                                 count += 1
                                 conn.commit() # Hər xəbərdən sonra yadda saxla
             conn.close()
