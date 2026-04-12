@@ -49,11 +49,17 @@
 
 <div id="searchBar">
     <form action="/" method="GET">
-        <input type="text" name="q" placeholder="Xəbər axtar...">
-        <button type="submit" style="padding:10px; background:#ffeb3b; border:none; border-radius:5px; cursor:pointer;">Axtar</button>
+        <input type="text" name="q" value="{{ info.query }}" placeholder="Açar sözü yazın (məs: alyona)...">
+        <button type="submit" style="padding:10px; background:#ffeb3b; border:none; border-radius:5px; cursor:pointer;">
+            <i class="fa fa-search"></i> Axtar
+        </button>
         <button type="button" onclick="toggleSearch()" style="background:none; color:white; border:none; font-size:25px; margin-left:10px; cursor:pointer;">&times;</button>
     </form>
 </div>
+
+{% if info.query %}
+    <h3 style="margin: 20px 0; color: #ffeb3b;">"{{ info.query }}" üçün axtarış nəticələri:</h3>
+{% endif %}
 
 <div class="sidebar" id="sidebar">
     <span onclick="toggleSidebar()" style="position:absolute; top:15px; right:20px; font-size:25px; color:#ffeb3b; cursor:pointer;">&times;</span>
