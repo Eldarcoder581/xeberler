@@ -54,49 +54,57 @@ def get_live_weather(city="Quba"):
     except: return f"18°C {city}"
 
 def bot_logic():
+    # Çəkiləcək hədəf saytlar
     targets = [
-        {"url": "https://news.milli.az/society/", "name": "Milli.az"},
-        {"url": "https://az.trend.az/", "name": "Trend"},
-        {"url": "https://caliber.az/az/", "name": "Caliber"}
+        {"url": "https://news.milli.az/society/", "limit": 20},
+        {"url": "https://az.trend.az/azerbaijan/", "limit": 20}
     ]
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
+            
             for target in targets:
+                count = 0
                 req = urllib.request.Request(target["url"], headers=headers)
                 with urllib.request.urlopen(req, timeout=15) as res:
                     soup = BeautifulSoup(res.read(), "html.parser")
+                    # Saytdakı bütün linkləri yoxlayırıq
                     for item in soup.find_all("a", href=True):
+                        if count >= target["limit"]: break # 20 dənə olanda dayan
+                        
                         link = item["href"]
+                        # Trend xəbərləri tam link olmaya bilər, onları düzəldirik
+                        if link.startswith("/"): link = "https://az.trend.az" + link
+                        
                         title = item.get("title") or item.text.strip()
                         
-                        if len(title) > 30 and link.startswith("http"):
+                        # Qısa başlıqları və lazımsız linkləri keçirik
+                        if len(title) > 25 and "http" in link:
                             cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
                             if not cursor.fetchone():
-                                # ŞƏKİL ÇƏKMƏ MƏNTİQİ
+                                # Xəbərin içindən əsas şəkli çəkmək
                                 img_url = ""
                                 try:
                                     c_req = urllib.request.Request(link, headers=headers)
-                                    with urllib.request.urlopen(c_req, timeout=7) as c_res:
+                                    with urllib.request.urlopen(c_req, timeout=5) as c_res:
                                         c_soup = BeautifulSoup(c_res.read(), "html.parser")
-                                        # Öncə meta tag-dan şəkli axtarır (ən keyfiyyətlisi budur)
                                         img_tag = c_soup.find('meta', property="og:image")
-                                        if img_tag: 
-                                            img_url = img_tag['content']
-                                        else:
-                                            # Meta yoxdursa, ilk böyük şəkli götürür
-                                            main_img = c_soup.find('img', src=True)
-                                            if main_img: img_url = main_img['src']
+                                        if img_tag: img_url = img_tag['content']
                                 except: pass
                                 
                                 cat = get_category(title)
                                 cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
-                                               (f"{title}", link, "Ətraflı məlumat üçün orijinal mənbəyə keçid edə bilərsiniz.", img_url, cat))
-            conn.commit()
+                                               (title, link, "Ətraflı məlumat üçün mənbəyə keçid edin.", img_url, cat))
+                                count += 1
+                                conn.commit() # Hər xəbərdən sonra yadda saxla
             conn.close()
-        except: pass
+        except Exception as e:
+            print(f"Bot xətası: {e}")
+        
+        # Hər 10 dəqiqədən bir yeni xəbərləri yoxla
         time.sleep(30)
 
 @app.route('/')
