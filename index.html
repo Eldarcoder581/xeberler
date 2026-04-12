@@ -78,16 +78,20 @@
 
 <div class="container">
     {% if all_news %}
-        {% elif info.query %}
-        <div style="text-align: center; padding: 50px;">
-            <h2 style="color: #ffeb3b;">"{{ info.query }}" üzrə heç bir xəbər tapılmadı.</h2>
-            <p>Fərqli açar sözlərlə yenidən yoxlayın.</p>
-            <a href="/" class="more-btn">Bütün xəbərlərə qayıt</a>
+        <div class="slider-wrap">
+            <button class="nav-btn prev" onclick="moveSlide(-1)">&#10094;</button>
+            <button class="nav-btn next" onclick="moveSlide(1)">&#10095;</button>
+            <div class="slides" id="slider">
+                {% for item in all_news[:5] %}
+                <a href="/xeber/{{ item[0] }}" class="slide">
+                    <img src="{{ item[4] or 'https://via.placeholder.com/1200x600?text=BAKU+NEWS' }}">
+                    <div class="slide-info">
+                        <h2>{{ item[1] }}</h2>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
         </div>
-    {% else %}
-        <h2 style="text-align: center; color: #ffeb3b; margin: 30px 0;">Xəbərlər hazırlanır...</h2>
-        {% endif %}
-</div>
 
         <h2 style="border-left: 4px solid #ffeb3b; padding-left: 10px; margin: 30px 0;">Son Xəbərlər</h2>
 
@@ -102,23 +106,26 @@
             </a>
             {% endfor %}
         </div>
+
+    {% elif info.query %}
+        <div style="text-align: center; padding: 50px;">
+            <h2 style="color: #ffeb3b;">"{{ info.query }}" üzrə heç bir xəbər tapılmadı.</h2>
+            <a href="/" class="more-btn">Bütün xəbərlərə qayıt</a>
+        </div>
+
     {% else %}
         <h2 style="text-align: center; color: #ffeb3b; margin: 30px 0;">Xəbərlər hazırlanır...</h2>
         <div class="grid">
-            {% for i in range(40) %}
-            <div class="card" style="opacity: 0.3; pointer-events: none;">
+            {% for i in range(12) %}
+            <div class="card" style="opacity: 0.3;">
                 <img src="https://via.placeholder.com/400x250?text=Yuklenir...">
-                <div class="card-body">
-                    <div style="height: 12px; background: #30363d; width: 40%; margin-bottom: 10px;"></div>
-                    <div style="height: 18px; background: #30363d; width: 90%;"></div>
-                </div>
             </div>
             {% endfor %}
         </div>
     {% endif %}
 
     <div style="text-align: center;">
-        <a href="/?page={{ info.next_page }}{% if info.current_cat %}&cat={{ info.current_cat }}{% endif %}" class="more-btn">
+        <a href="/?page={{ info.next_page }}{% if info.query %}&q={{ info.query }}{% endif %}" class="more-btn">
             Daha çox xəbər gör
         </a>
     </div>
