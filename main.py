@@ -96,21 +96,33 @@ def bot_logic():
 
 @app.route('/')
 def home():
-    query = request.args.get('q', '').strip()
+    query = request.args.get('q', '').strip().lower() # Kiçik hərfə çeviririk
     page = request.args.get('page', 1, type=int)
     offset = (page - 1) * 40
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     if query:
-        sql = "SELECT * FROM xeberler WHERE bashliq LIKE ? OR meqale LIKE ? ORDER BY id DESC LIMIT 40 OFFSET ?"
+        # LOWER istifadə edərək axtarışı daha dəqiq edirik
+        sql = """SELECT * FROM xeberler 
+                 WHERE LOWER(bashliq) LIKE ? OR LOWER(meqale) LIKE ? 
+                 ORDER BY id DESC LIMIT 40 OFFSET ?"""
         p = f"%{query}%"
         cursor.execute(sql, (p, p, offset))
     else:
         cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40 OFFSET ?", (offset,))
     
     all_news = cursor.fetchall()
-    info = {"usd": "1.7000", "hava": get_live_weather("Quba"), "next_page": page + 1, "query": query}
+    
+    # Əgər axtarışda nəticə yoxdursa, boş qutular yerinə bir mesaj göstərək
+    info = {
+        "usd": "1.7000", 
+        "hava": get_live_weather("Quba"), 
+        "next_page": page + 1, 
+        "query": query,
+        "results_found": len(all_news) > 0 # Nəticə olub-olmadığını yoxlayırıq
+    }
     conn.close()
     return render_template("index.html", all_news=all_news, info=info)
 
