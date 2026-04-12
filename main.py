@@ -20,17 +20,15 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS serhler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          xeber_id INTEGER, ad TEXT, mesaj TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS statistika (id INTEGER PRIMARY KEY, baxish_sayi INTEGER)''')
-    cursor.execute('''INSERT OR IGNORE INTO statistika (id, baxish_sayi) VALUES (1, 0)''')
     conn.commit()
     conn.close()
 
 def get_category(title):
     t = title.lower()
-    if any(x in t for x in ['futbol', 'idman', 'oyun', 'klub']): return 'İdman'
-    if any(x in t for x in ['dollar', 'euro', 'manat', 'iqtisadiyyat', 'bank']): return 'İqtisadiyyat'
-    if any(x in t for x in ['iphone', 'it', 'texnologiya', 'smartfon']): return 'Texnologiya'
-    if any(x in t for x in ['paşinyan', 'siyasət', 'prezident', 'nazir']): return 'Siyasət'
+    if any(x in t for x in ['futbol', 'idman', 'oyun', 'klub', 'federasiya']): return 'İdman'
+    if any(x in t for x in ['dollar', 'euro', 'manat', 'iqtisadiyyat', 'qiymət', 'bank']): return 'İqtisadiyyat'
+    if any(x in t for x in ['iphone', 'it', 'texnologiya', 'kosmos', 'smartfon']): return 'Texnologiya'
+    if any(x in t for x in ['paşinyan', 'siyasət', 'prezident', 'nazir', 'diplomat']): return 'Siyasət'
     return 'Dünya'
 
 def get_live_weather(city="Quba"):
@@ -47,7 +45,7 @@ def bot_logic():
         {"url": "https://az.trend.az/", "name": "Trend"},
         {"url": "https://caliber.az/az/", "name": "Caliber"}
     ]
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -59,43 +57,43 @@ def bot_logic():
                     for item in soup.find_all("a", href=True):
                         link = item["href"]
                         title = item.get("title") or item.text.strip()
+                        
                         if len(title) > 30 and link.startswith("http"):
                             cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
                             if not cursor.fetchone():
-                                # Şəkil axtarışı
+                                # ŞƏKİL ÇƏKMƏ MƏNTİQİ
                                 img_url = ""
                                 try:
                                     c_req = urllib.request.Request(link, headers=headers)
-                                    with urllib.request.urlopen(c_req, timeout=5) as c_res:
+                                    with urllib.request.urlopen(c_req, timeout=7) as c_res:
                                         c_soup = BeautifulSoup(c_res.read(), "html.parser")
+                                        # Öncə meta tag-dan şəkli axtarır (ən keyfiyyətlisi budur)
                                         img_tag = c_soup.find('meta', property="og:image")
-                                        if img_tag: img_url = img_tag['content']
+                                        if img_tag: 
+                                            img_url = img_tag['content']
+                                        else:
+                                            # Meta yoxdursa, ilk böyük şəkli götürür
+                                            main_img = c_soup.find('img', src=True)
+                                            if main_img: img_url = main_img['src']
                                 except: pass
                                 
                                 cat = get_category(title)
                                 cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
-                                               (title, link, "Ətraflı məlumat üçün mənbəyə keçid edin.", img_url, cat))
+                                               (f"{title}", link, "Ətraflı məlumat üçün orijinal mənbəyə keçid edə bilərsiniz.", img_url, cat))
             conn.commit()
             conn.close()
         except: pass
-        time.sleep(60)
+        time.sleep(30)
 
 @app.route('/')
 def home():
     city = request.args.get('city', 'Quba')
     cat = request.args.get('cat')
     q = request.args.get('q')
+    info = {"usd": "1.7000", "hava": get_live_weather(city)}
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # BAXIŞ SAYI ARTIRILIR
-    cursor.execute('UPDATE statistika SET baxish_sayi = baxish_sayi + 1 WHERE id = 1')
-    conn.commit()
-    cursor.execute('SELECT baxish_sayi FROM statistika WHERE id = 1')
-    say = cursor.fetchone()[0]
-    
-    info = {"usd": "1.7000", "hava": get_live_weather(city), "say": say}
-    
     if q:
         cursor.execute("SELECT * FROM xeberler WHERE bashliq LIKE ? ORDER BY id DESC", ('%'+q+'%',))
     elif cat:
@@ -115,7 +113,6 @@ def news_detail(news_id):
     cursor.execute("SELECT ad, mesaj FROM serhler WHERE xeber_id = ?", (news_id,))
     serhler = cursor.fetchall()
     conn.close()
-    if not news: return "Xəbər tapılmadı", 404
     return render_template("news_page.html", news=news, serhler=serhler)
 
 @app.route('/send_serh', methods=['POST'])
