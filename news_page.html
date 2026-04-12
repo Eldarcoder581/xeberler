@@ -33,19 +33,20 @@
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <a href="/" class="back">← Ana Səhifə</a>
-        <h1 style="color: #ffeb3b;">{{ news[1] }}</h1>
-        <img src="{{ news[4] or 'https://via.placeholder.com/800x400' }}">
-        
-        <p style="font-size: 18px; color: #eee;">{{ news[3] }}</p>
+   <div class="wrap">
+    <a href="/" class="back">← Ana Səhifə</a>
+    <h1 style="color: #ffeb3b;">{{ news[1] }}</h1>
+    <img src="{{ news[4] or 'https://via.placeholder.com/800x400' }}">
+    
+    <div style="font-size: 18px; color: #eee; margin-top: 20px; white-space: pre-line;">
+        {{ news[3] if news[3] else "Bu xəbər üçün ətraflı məlumat hələ əlavə edilməyib." }}
+    </div>
 
-        <div class="source-box">
-            <span style="color: #8b949e; font-size: 14px; display: block; margin-bottom: 5px;">Xəbərin tam mətni üçün:</span>
-            <a href="{{ news[2] }}" target="_blank" class="source-link">
-                <i class="fa fa-external-link-alt"></i> Orijinal mənbəyə keçid edin (Milli.az / Trend.az)
-            </a>
-        </div>
+    <div class="source-box">
+        <a href="{{ news[2] }}" target="_blank" class="source-link">Orijinal mənbəyə keçid (Milli.az / Trend.az)</a>
+    </div>
+    
+    </div>
         
         <div class="comm-box">
             <h3>Şərhlər</h3>
