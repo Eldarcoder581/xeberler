@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Əhmədzadə News</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #0b0e14; color: #e1e1e1; }
+        
+        header { background: #161b22; padding: 20px; border-bottom: 2px solid #ffeb3b; text-align: center; position: sticky; top: 0; z-index: 1000; }
+        .logo { font-size: 26px; font-weight: bold; color: #ffeb3b; text-decoration: none; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .container { max-width: 1300px; margin: 20px auto; padding: 0 15px; }
+
+        /* --- SLIDER DIZAYNI --- */
+        .swiper { width: 100%; border-radius: 15px; margin-bottom: 40px; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Mobil hündürlük */
+        @media (max-width: 768px) { .swiper { height: 280px; } }
+        /* Kompyuter hündürlük (Böyük görsənməsi üçün) */
+        @media (min-width: 769px) { .swiper { height: 550px; } }
+
+        .swiper-slide { position: relative; overflow: hidden; }
+        .swiper-slide img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; transition: 0.5s; }
+        .swiper-slide:hover img { opacity: 0.9; transform: scale(1.05); }
+        
+        .slider-content {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 50px 25px 30px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.95));
+            color: white;
+        }
+        .slider-content h2 { margin: 0; font-size: 1.8rem; line-height: 1.2; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+
+        /* SARI OXAR */
+        .swiper-button-next, .swiper-button-prev { color: #ffeb3b !important; transform: scale(0.8); }
+        .swiper-pagination-bullet-active { background: #ffeb3b !important; }
+
+        /* --- XEBER SIYAHISI (40 Xəbər) --- */
+        .section-title { font-size: 24px; color: #ffeb3b; border-left: 5px solid #ffeb3b; padding-left: 15px; margin-bottom: 25px; text-transform: uppercase; }
+        
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        
+        .news-card { background: #1c2128; border-radius: 12px; overflow: hidden; border: 1px solid #30363d; transition: 0.3s; text-decoration: none; color: inherit; display: flex; flex-direction: column; }
+        .news-card:hover { transform: translateY(-8px); border-color: #ffeb3b; box-shadow: 0 5px 15px rgba(255, 235, 59, 0.1); }
+        
+        .news-card img { width: 100%; height: 180px; object-fit: cover; }
+        .news-card-body { padding: 15px; flex-grow: 1; }
+        .news-card-body h3 { margin: 0; font-size: 16px; color: #adbac7; line-height: 1.4; height: 45px; overflow: hidden; }
+        .news-card-body p { font-size: 13px; color: #768390; margin-top: 10px; line-height: 1.5; }
+
+        .footer { text-align: center; padding: 40px; color: #768390; font-size: 14px; border-top: 1px solid #30363d; margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/" class="logo">Əhmədzadə News</a>
+</header>
+
+<div class="container">
+    
+    <div class="swiper mySwiper">
+        <div class="swiper-wrapper">
+            {% for item in slider_news %}
+            <div class="swiper-slide">
+                <a href="/xeber/{{ item[0] }}">
+                    <img src="{{ item[2] or 'https://via.placeholder.com/1200x600?text=Xeber+Shekli' }}">
+                    <div class="slider-content">
+                        <h2>{{ item[1] }}</h2>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="swiper-button-next"></div>
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-pagination"></div>
+    </div>
+
+    <h2 class="section-title">İndi Oxuyurlar</h2>
+    <div class="news-grid">
+        {% for item in all_news %}
+        <a href="/xeber/{{ item[0] }}" class="news-card">
+            <img src="{{ item[3] or 'https://via.placeholder.com/400x250?text=Xeber' }}">
+            <div class="news-card-body">
+                <h3>{{ item[1] }}</h3>
+                <p>{{ item[2][:90] }}...</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+</div>
+
+<div class="footer">
+    &copy; 2026 Əhmədzadə News - Bütün hüquqlar qorunur.
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script>
+    var swiper = new Swiper(".mySwiper", {
+        loop: true,
+        centeredSlides: true,
+        autoplay: {
+            delay: 4000,
+            disableOnInteraction: false,
+        },
+        pagination: {
+            el: ".swiper-pagination",
+            clickable: true,
+        },
+        navigation: {
+            nextEl: ".swiper-button-next",
+            prevEl: ".swiper-button-prev",
+        },
+    });
+</script>
+
+</body>
+  </html>
+  
