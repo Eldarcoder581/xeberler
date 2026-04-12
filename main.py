@@ -3,11 +3,14 @@ import sqlite3
 import threading
 import time
 import os
-from bs4 import BeautifulSoup
-from flask import Flask, render_template
+# ... digər importlar ...
 
-# Qovluq adını bura birbaşa bağladım
-app = Flask(__name__, template_folder='xeberler')
+# Bu sətiri tap və aşağıdakı ilə dəyiş:
+# app = Flask(__name__, template_folder='xeberler')
+
+# Yeni sətir (main.py ilə eyni qovluqda axtarması üçün):
+app = Flask(__name__, template_folder='.') 
+)
 DB_PATH = 'bakunews.db'
 
 # 1. BAZA QURULMASI
