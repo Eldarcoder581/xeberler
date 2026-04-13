@@ -4,9 +4,10 @@ import threading
 import time
 import os
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, session
 
 app = Flask(__name__, template_folder='.')
+app.secret_key = 'baku_news_2026_key' # Session üçün gizli açar
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'bakunews.db')
 
@@ -25,9 +26,9 @@ def init_db():
 def get_category(title):
     t = title.lower()
     if any(x in t for x in ['futbol', 'idman', 'oyun']): return 'İdman'
-    if any(x in t for x in ['dollar', 'euro', 'iqtisadiyyat']): return 'İqtisadiyyat'
-    if any(x in t for x in ['iphone', 'it', 'texnologiya']): return 'Texnologiya'
-    return 'Siyasət' if 'siyasət' in t else 'Dünya'
+    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'euro', 'bank']): return 'İqtisadiyyat'
+    if any(x in t for x in ['analiz', 'strateji', 'hesabat']): return 'Analitik Hesabat'
+    return 'Dünya'
 
 def get_live_weather(city="Quba"):
     try:
@@ -38,9 +39,12 @@ def get_live_weather(city="Quba"):
     except: return f"18°C {city}"
 
 def bot_logic():
+    # Yeni mənbələr: Report, Qafqazinfo, Trend, BBC
     targets = [
-        {"url": "https://news.milli.az/society/", "limit": 20},
-        {"url": "https://az.trend.az/azerbaijan/", "limit": 20}
+        {"url": "https://report.az/son-xeberler/", "base": "https://report.az"},
+        {"url": "https://qafqazinfo.az/", "base": ""},
+        {"url": "https://az.trend.az/azerbaijan/", "base": "https://az.trend.az"},
+        {"url": "https://www.bbc.com/azeri", "base": "https://www.bbc.com"}
     ]
     headers = {'User-Agent': 'Mozilla/5.0'}
     
@@ -52,14 +56,12 @@ def bot_logic():
                 req = urllib.request.Request(target["url"], headers=headers)
                 with urllib.request.urlopen(req, timeout=15) as res:
                     soup = BeautifulSoup(res.read(), "html.parser")
-                    count = 0
-                    for item in soup.find_all("a", href=True):
-                        if count >= target["limit"]: break
+                    for item in soup.find_all("a", href=True)[:15]: # Hər mənbədən 15 xəbər
                         link = item["href"]
-                        if link.startswith("/"): link = "https://az.trend.az" + link
-                        title = item.get("title") or item.text.strip()
+                        if link.startswith("/"): link = target["base"] + link
+                        title = item.text.strip()
                         
-                        if len(title) > 25 and "http" in link:
+                        if len(title) > 30 and "http" in link:
                             cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
                             if not cursor.fetchone():
                                 img_url, summary = "", "Məzmun yüklənir..."
@@ -70,52 +72,84 @@ def bot_logic():
                                         img_tag = c_soup.find('meta', property="og:image")
                                         if img_tag: img_url = img_tag['content']
                                         
-                                        # Təmizləmə və Xülasə hissəsi
-                                        paragraphs = c_soup.find_all('p')
-                                        content_list = []
-                                        blacklist = ['turkic.world', 'idman.biz', 'azernews.az', 'trend.az', 'day.az', 'hava proqnozu', 'pul']
-                                        
-                                        for p in paragraphs:
-                                            text = p.text.strip()
-                                            if not any(word in text.lower() for word in blacklist) and len(text) > 30:
-                                                content_list.append(text)
-                                        
-                                        if content_list:
-                                            summary = " ".join(content_list[:3])
-                                            if len(summary) > 500: summary = summary[:500] + "..."
-                                except:
-                                    pass
+                                        p_tags = c_soup.find_all('p')
+                                        if p_tags:
+                                            summary = " ".join([p.text.strip() for p in p_tags[:2]])
+                                            if len(summary) > 400: summary = summary[:400] + "..."
+                                except: pass
                                 
                                 cursor.execute("INSERT INTO xeberler (bashliq, link, meqale, img_url, kateqoriya) VALUES (?,?,?,?,?)",
                                                (title, link, summary, img_url, get_category(title)))
-                                count += 1
                                 conn.commit()
             conn.close()
-        except Exception as e:
-            print(f"Bot xətası: {e}")
-        time.sleep(600) # 10 dəqiqə gözlə
+        except: pass
+        time.sleep(900) # 15 dəqiqədən bir yenilə
 
 @app.route('/')
 def home():
     query = request.args.get('q', '').strip().lower()
-    page = request.args.get('page', 1, type=int)
-    offset = (page - 1) * 40
+    is_admin = request.args.get('key') == '1eldar123*'
+    lang = session.get('lang', 'az')
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    if query:
-        sql = """SELECT * FROM xeberler 
-                 WHERE LOWER(bashliq) LIKE ? OR LOWER(meqale) LIKE ? 
-                 ORDER BY id DESC LIMIT 40 OFFSET ?"""
-        p = f"%{query}%"
-        cursor.execute(sql, (p, p, offset))
+    # 40 xəbər limiti və filtrasiya
+    secret_cats = ('Analitik Hesabat', 'Strateji Analiz', 'Məlumatların Sintezi')
+    
+    if is_admin:
+        if query:
+            cursor.execute("SELECT * FROM xeberler WHERE LOWER(bashliq) LIKE ? ORDER BY id DESC LIMIT 40", (f"%{query}%",))
+        else:
+            cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40")
     else:
-        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40 OFFSET ?", (offset,))
+        if query:
+            cursor.execute("SELECT * FROM xeberler WHERE LOWER(bashliq) LIKE ? AND kateqoriya NOT IN (?,?,?) ORDER BY id DESC LIMIT 40", (f"%{query}%", *secret_cats))
+        else:
+            cursor.execute("SELECT * FROM xeberler WHERE kateqoriya NOT IN (?,?,?) ORDER BY id DESC LIMIT 40", secret_cats)
     
     all_news = cursor.fetchall()
-    info = {"usd": "1.7000", "hava": get_live_weather("Quba"), "next_page": page + 1, "query": query, "results_found": len(all_news) > 0}
+    info = {
+        "usd": "1.7000", 
+        "hava": get_live_weather("Quba"), 
+        "query": query, 
+        "is_admin": is_admin,
+        "lang": lang
+    }
     conn.close()
     return render_template("index.html", all_news=all_news, info=info)
+
+@app.route('/set_lang/<lang>')
+def set_lang(lang):
+    session['lang'] = lang
+    return redirect(request.referrer or '/')
+
+@app.route('/admin')
+def admin_panel():
+    if request.args.get('key') != '1eldar123*': return "Giriş qadağandır!", 403
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, bashliq, kateqoriya FROM xeberler ORDER BY id DESC LIMIT 100")
+    news = cursor.fetchall()
+    conn.close()
+    return f"""
+    <body style="background:#1a1a1a; color:white; font-family:sans-serif; padding:20px;">
+        <h2>Baku News - İdarəetmə Paneli</h2>
+        <a href="/" style="color:#ffeb3b;">← Sayta qayıt</a><br><br>
+        <table border="1" style="width:100%; border-collapse:collapse;">
+            <tr style="background:#333;"><th>ID</th><th>Başlıq</th><th>Kateqoriya</th><th>Əməliyyat</th></tr>
+            {"".join([f"<tr><td>{n[0]}</td><td>{n[1][:50]}...</td><td>{n[2]}</td><td><a href='/delete/{n[0]}?key=1eldar123*' style='color:red;'>Sil</a></td></tr>" for n in news])}
+        </table>
+    </body>
+    """
+
+@app.route('/delete/<int:news_id>')
+def delete_news(news_id):
+    if request.args.get('key') == '1eldar123*':
+        conn = sqlite3.connect(DB_PATH); cursor = conn.cursor()
+        cursor.execute("DELETE FROM xeberler WHERE id = ?", (news_id,))
+        conn.commit(); conn.close()
+    return redirect(f'/admin?key=1eldar123*')
 
 @app.route('/xeber/<int:news_id>')
 def news_detail(news_id):
