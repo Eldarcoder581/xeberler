@@ -63,16 +63,34 @@ def bot_logic():
         except: pass
         time.sleep(30)
 
-@app.route('/')
-def home():
-    is_admin = request.args.get('key') == '1eldar123*'
+@app.route('/send_serh', methods=['POST'])
+def send_serh():
+    xeber_id = request.form.get('xeber_id')
+    ad = request.form.get('ad')
+    mesaj = request.form.get('mesaj')
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler ORDER BY id DESC LIMIT 100")
-    all_news = cursor.fetchall()
+    cursor.execute("INSERT INTO serhler (xeber_id, ad, mesaj) VALUES (?, ?, ?)", (xeber_id, ad, mesaj))
+    conn.commit()
     conn.close()
-    info = {"is_admin": is_admin, "hava": "18°C Quba"}
-    return render_template("index.html", all_news=all_news, info=info)
+    return redirect(f'/xeber/{xeber_id}')
+
+@app.route('/xeber/<int:xeber_id>')
+def news_detail(xeber_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    # Xəbəri gətir
+    cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler WHERE id = ?", (xeber_id,))
+    news = cursor.fetchone()
+    # Şərhləri gətir
+    cursor.execute("SELECT ad, mesaj FROM serhler WHERE xeber_id = ?", (xeber_id,))
+    serhler = cursor.fetchall()
+    conn.close()
+    
+    if news:
+        return render_template("xəbər_səhifəsi.html", news=news, serhler=serhler)
+    return "Xəbər tapılmadı", 404
 
 if __name__ == '__main__':
     init_db()
