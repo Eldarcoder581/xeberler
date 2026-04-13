@@ -23,13 +23,15 @@ def init_db():
 
 def get_category(title):
     t = title.lower()
-    # Filtirlər: Əgər bu sözlər yoxdursa, xəbər qəbul olunmayacaq
-    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'manat', 'büdcə', 'bank', 'neft', 'qaz', 'ixrac']): return 'İqtisadiyyat'
-    if any(x in t for x in ['təhsil', 'elm', 'universitet', 'məktəb', 'imtihan', 'ədəbiyyat']): return 'Təhsil və Elm'
-    if any(x in t for x in ['hərbi', 'ordu', 'müdafiə', 'əsgər', 'silah', 'poliqon', 'pənahov']): return 'Hərbi'
-    if any(x in t for x in ['innovasiya', 'texnologiya', 'startap', 'it', 'rəqəmsal', 'süni zəka']): return 'İnnovasiya'
-    if any(x in t for x in ['siyasət', 'prezident', 'nazir', 'diplomatiya', 'görüş', 'səfər', 'parlament']): return 'Siyasət'
-    return None # Maraqlı olmayan xəbərlər üçün None qaytarırıq
+    # Sənin istədiyin əsas sahələr
+    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'manat', 'bank', 'maliyyə', 'büdcə', 'neft', 'qaz']): return 'İqtisadiyyat'
+    if any(x in t for x in ['hərbi', 'ordu', 'müdafiə', 'əsgər', 'silah', 'atəşkəs', 'şəhid', 'qazi']): return 'Hərbi'
+    if any(x in t for x in ['təhsil', 'elm', 'məktəb', 'universitet', 'imtahan', 'tələbə', 'ədəbiyyat']): return 'Təhsil'
+    if any(x in t for x in ['siyasət', 'prezident', 'nazir', 'görüş', 'diplomat', 'əliyev', 'paşinyan', 'parlament']): return 'Siyasət'
+    if any(x in t for x in ['innovasiya', 'texno', 'it', 'smartfon', 'süni zəka', 'startap', 'kosmos']): return 'İnnovasiya'
+    
+    # Əgər yuxarıdakılar tapılmasa, "Gündəm" olaraq qeyd et ki, sayt boş qalmasın
+    return 'Gündəm'
 
 def bot_logic():
     # Sənin istədiyin sahələrə uyğun mənbə linkləri
