@@ -7,174 +7,97 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
         body { font-family: sans-serif; margin: 0; background: #0b0e14; color: white; padding-bottom: 80px; }
-        header { background: #161b22; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ffeb3b; position: sticky; top: 0; z-index: 1000; }
-        .logo { font-size: 22px; font-weight: bold; color: #ffeb3b; text-decoration: none; }
+        header { background: #161b22; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ffeb3b; position: sticky; top: 0; z-index: 1000; }
+        .logo { font-size: 24px; font-weight: bold; color: #ffeb3b; text-decoration: none; letter-spacing: 1px; }
         
-        .sidebar { position: fixed; top: 0; left: -260px; width: 260px; height: 100%; background: #161b22; transition: 0.3s; z-index: 2000; padding-top: 60px; border-right: 1px solid #ffeb3b; }
-        .sidebar.active { left: 0; }
-        .sidebar a { display: block; padding: 15px 25px; color: white; text-decoration: none; border-bottom: 1px solid #30363d; }
+        /* BAKU.WS STİLİ DİL SEÇİMİ */
+        .lang-switcher { display: flex; gap: 8px; font-size: 14px; font-weight: bold; }
+        .lang-switcher a { text-decoration: none; color: #888; transition: 0.3s; }
+        .lang-switcher a.active { color: #ffeb3b; }
+        .lang-switcher span { color: #444; }
+
         #searchBar { display: none; position: fixed; top: 0; width: 100%; background: #161b22; padding: 15px; z-index: 1500; border-bottom: 1px solid #ffeb3b; text-align: center; }
         #searchBar input { width: 70%; padding: 10px; border-radius: 5px; border: none; }
 
-        /* SLIDER DIZAYNI + OX İŞARƏLƏRİ */
-        .slider-wrap { width: 100%; max-width: 1200px; margin: 15px auto; overflow: hidden; border-radius: 12px; position: relative; height: 350px; border: 1px solid #30363d; background: #1c2128; }
-        .slides { display: flex; transition: 0.5s; height: 100%; }
-        .slide { min-width: 100%; position: relative; text-decoration: none; }
-        .slide img { width: 100%; height: 100%; object-fit: cover; }
-        .slide-info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 30px 15px; }
-        .slide-info h2 { margin: 0; font-size: 22px; color: #ffeb3b; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-
-        .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: #ffeb3b; border: none; padding: 15px; cursor: pointer; font-size: 20px; z-index: 10; border-radius: 50%; transition: 0.3s; }
-        .nav-btn:hover { background: #ffeb3b; color: #000; }
-        .prev { left: 15px; }
-        .next { right: 15px; }
-
-        /* GRID DIZAYNI */
-        .container { max-width: 1200px; margin: auto; padding: 15px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: #1c2128; border-radius: 12px; overflow: hidden; text-decoration: none; color: white; border: 1px solid #30363d; transition: 0.3s; display: flex; flex-direction: column; }
-        .card:hover { transform: translateY(-5px); border-color: #ffeb3b; }
-        .card img { width: 100%; height: 180px; object-fit: cover; }
-        .card-body { padding: 15px; flex-grow: 1; }
-        .card-body h3 { font-size: 16px; margin: 8px 0; line-height: 1.4; color: #eee; }
+        .container { max-width: 800px; margin: auto; padding: 15px; }
+        
+        /* XƏBƏR LENTİ (ALT-ALTA) */
+        .news-list { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
+        .news-item { display: flex; background: #1c2128; border-radius: 8px; overflow: hidden; text-decoration: none; color: white; border: 1px solid #30363d; transition: 0.2s; height: 100px; }
+        .news-item:hover { border-color: #ffeb3b; background: #252b33; }
+        .news-item img { width: 140px; height: 100%; object-fit: cover; }
+        .news-info { padding: 10px; display: flex; flex-direction: column; justify-content: center; }
+        .news-info h3 { font-size: 15px; margin: 0; line-height: 1.3; color: #eee; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .news-meta { font-size: 11px; color: #ffeb3b; margin-top: 5px; font-weight: bold; text-transform: uppercase; }
 
         footer { position: fixed; bottom: 0; width: 100%; background: #161b22; padding: 12px; border-top: 1px solid #30363d; text-align: center; color: #ffeb3b; z-index: 1000; display: flex; justify-content: center; gap: 25px; font-size: 14px; }
-        .more-btn { display: inline-block; background: #ffeb3b; color: #000; padding: 12px 30px; border-radius: 8px; font-weight: bold; text-decoration: none; margin: 30px 0; transition: 0.2s; border: none; cursor: pointer; }
         
-        #cityList { display: none; position: absolute; bottom: 50px; background: #161b22; border: 1px solid #ffeb3b; border-radius: 5px; width: 130px; }
-        #cityList a { display: block; padding: 10px; color: white; text-decoration: none; border-bottom: 1px solid #30363d; }
+        /* ADMIN PANEL DÜYMƏSİ (GİZLİ) */
+        {% if info.is_admin %}
+        .admin-link { background: red; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; }
+        {% endif %}
     </style>
 </head>
 <body>
 
 <div id="searchBar">
     <form action="/" method="GET">
-        <input type="text" name="q" value="{{ info.query }}" placeholder="Açar sözü yazın (məs: alyona)...">
-        <button type="submit" style="padding:10px; background:#ffeb3b; border:none; border-radius:5px; cursor:pointer;">
-            <i class="fa fa-search"></i> Axtar
-        </button>
-        <button type="button" onclick="toggleSearch()" style="background:none; color:white; border:none; font-size:25px; margin-left:10px; cursor:pointer;">&times;</button>
+        <input type="text" name="q" placeholder="Xəbər axtar...">
+        <button type="submit" style="padding:10px; background:#ffeb3b; border:none; border-radius:5px; cursor:pointer;"><i class="fa fa-search"></i></button>
+        <button type="button" onclick="toggleSearch()" style="background:none; color:white; border:none; font-size:25px; cursor:pointer;">&times;</button>
     </form>
 </div>
 
-{% if info.query %}
-    <h3 style="margin: 20px 0; color: #ffeb3b;">"{{ info.query }}" üçün axtarış nəticələri:</h3>
-{% endif %}
-
-<div class="sidebar" id="sidebar">
-    <span onclick="toggleSidebar()" style="position:absolute; top:15px; right:20px; font-size:25px; color:#ffeb3b; cursor:pointer;">&times;</span>
-    <a href="/">Ana Səhifə</a>
-    <a href="/?cat=Siyasət">Siyasət</a>
-    <a href="/?cat=İdman">İdman</a>
-    <a href="/?cat=İqtisadiyyat">İqtisadiyyat</a>
-    <a href="/?cat=Texnologiya">Texnologiya</a>
-</div>
-
 <header>
-    <i class="fa fa-bars" onclick="toggleSidebar()" style="color:#ffeb3b; cursor:pointer; font-size:24px;"></i>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <i class="fa fa-search" onclick="toggleSearch()" style="color:#ffeb3b; cursor:pointer; font-size:20px;"></i>
+        {% if info.is_admin %}
+            <a href="/admin?key=1eldar123*" class="admin-link">ADMİN</a>
+        {% endif %}
+    </div>
+    
     <a href="/" class="logo">BAKU NEWS</a>
-    <i class="fa fa-search" onclick="toggleSearch()" style="color:#ffeb3b; cursor:pointer; font-size:22px;"></i>
+
+    <div class="lang-switcher">
+        <a href="/set_lang/az" class="active">AZ</a>
+        <span>|</span>
+        <a href="/set_lang/ru">RU</a>
+        <span>|</span>
+        <a href="/set_lang/en">EN</a>
+    </div>
 </header>
 
 <div class="container">
-    {% if all_news %}
-        <div class="slider-wrap">
-            <button class="nav-btn prev" onclick="moveSlide(-1)">&#10094;</button>
-            <button class="nav-btn next" onclick="moveSlide(1)">&#10095;</button>
-            <div class="slides" id="slider">
-                {% for item in all_news[:5] %}
-                <a href="/xeber/{{ item[0] }}" class="slide">
-                    <img src="{{ item[4] or 'https://via.placeholder.com/1200x600?text=BAKU+NEWS' }}">
-                    <div class="slide-info">
-                        <h2>{{ item[1] }}</h2>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
+    {% if info.query %}
+        <h3 style="color: #ffeb3b; font-size: 16px;">"{{ info.query }}" üzrə nəticələr:</h3>
+    {% endif %}
 
-        <h2 style="border-left: 4px solid #ffeb3b; padding-left: 10px; margin: 30px 0;">Son Xəbərlər</h2>
-
-        <div class="grid">
-            {% for item in all_news[5:] %}
-            <a href="/xeber/{{ item[0] }}" class="card">
-                <img src="{{ item[4] or 'https://via.placeholder.com/400x250?text=BAKU+NEWS' }}">
-                <div class="card-body">
-                    <small style="color:#ffeb3b; font-weight:bold;">{{ item[5] }}</small>
+    <div class="news-list">
+        {% if all_news %}
+            {% for item in all_news %}
+            <a href="/xeber/{{ item[0] }}" class="news-item">
+                <img src="{{ item[4] or 'https://via.placeholder.com/150x100?text=BAKU+NEWS' }}" alt="news">
+                <div class="news-info">
                     <h3>{{ item[1] }}</h3>
+                    <div class="news-meta">{{ item[5] }}</div>
                 </div>
             </a>
             {% endfor %}
-        </div>
-
-    {% elif info.query %}
-        <div style="text-align: center; padding: 50px;">
-            <h2 style="color: #ffeb3b;">"{{ info.query }}" üzrə heç bir xəbər tapılmadı.</h2>
-            <a href="/" class="more-btn">Bütün xəbərlərə qayıt</a>
-        </div>
-
-    {% else %}
-        <h2 style="text-align: center; color: #ffeb3b; margin: 30px 0;">Xəbərlər hazırlanır...</h2>
-        <div class="grid">
-            {% for i in range(12) %}
-            <div class="card" style="opacity: 0.3;">
-                <img src="https://via.placeholder.com/400x250?text=Yuklenir...">
-            </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    <div style="text-align: center;">
-        <a href="/?page={{ info.next_page }}{% if info.query %}&q={{ info.query }}{% endif %}" class="more-btn">
-            Daha çox xəbər gör
-        </a>
+        {% else %}
+            <p style="text-align:center; color:#888;">Xəbər tapılmadı.</p>
+        {% endif %}
     </div>
 </div>
 
 <footer>
-    <div><i class="fa fa-money-bill-wave"></i> USD: {{ info.usd }}</div>
-    <div style="position:relative">
-        <div onclick="toggleCityMenu()" style="cursor:pointer"><i class="fa fa-temperature-high"></i> {{ info.hava }}</div>
-        <div id="cityList">
-            <a href="/?city=Baku">Bakı</a>
-            <a href="/?city=Quba">Quba</a>
-            <a href="/?city=Ganja">Gəncə</a>
-            <a href="/?city=Sumqayit">Sumqayıt</a>
-        </div>
-    </div>
+    <div><i class="fa fa-money-bill-wave"></i> USD: 1.7000</div>
+    <div><i class="fa fa-temperature-high"></i> {{ info.hava }}</div>
 </footer>
 
 <script>
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
     function toggleSearch() { 
         var s = document.getElementById('searchBar');
         s.style.display = (s.style.display === 'block') ? 'none' : 'block';
-    }
-    function toggleCityMenu() {
-        var c = document.getElementById('cityList');
-        c.style.display = (c.style.display === 'block') ? 'none' : 'block';
-    }
-
-    // Slider məntiqi
-    let currentSlide = 0;
-    const slidesContainer = document.getElementById('slider');
-    
-    function moveSlide(n) {
-        if (!slidesContainer) return;
-        const totalSlides = slidesContainer.children.length;
-        currentSlide += n;
-        
-        if (currentSlide >= totalSlides) currentSlide = 0;
-        if (currentSlide < 0) currentSlide = totalSlides - 1;
-        
-        slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
-    }
-
-    // Avtomatik sürüşmə
-    if (slidesContainer && slidesContainer.children.length > 0) {
-        setInterval(() => {
-            moveSlide(1);
-        }, 5000);
     }
 </script>
 </body>
