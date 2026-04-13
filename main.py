@@ -4,7 +4,7 @@ import threading
 import time
 import os
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__, template_folder='.')
 app.secret_key = 'baku_news_2026_key'
@@ -14,10 +14,15 @@ DB_PATH = os.path.join(BASE_DIR, 'bakunews.db')
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    # Xəbərlər cədvəli
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, link TEXT UNIQUE, meqale TEXT, 
          img_url TEXT, kateqoriya TEXT DEFAULT 'Gündəm')''')
+    # Şərhlər cədvəli
+    cursor.execute('''CREATE TABLE IF NOT EXISTS serhler 
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+         xeber_id INTEGER, ad TEXT, mesaj TEXT)''')
     conn.commit()
     conn.close()
 
@@ -46,7 +51,7 @@ def bot_logic():
                     req = urllib.request.Request(target["url"], headers=headers)
                     with urllib.request.urlopen(req, timeout=10) as res:
                         soup = BeautifulSoup(res.read(), "html.parser")
-                        for item in soup.find_all("a", href=True)[:30]:
+                        for item in soup.find_all("a", href=True)[:20]:
                             link = item["href"]
                             if link.startswith("/"): link = target["base"] + link
                             title = item.text.strip()
@@ -61,47 +66,44 @@ def bot_logic():
                 except: continue
             conn.close()
         except: pass
-        time.sleep(30)
-       
-        @app.route('/')
-    def home():
+        time.sleep(60)
+
+@app.route('/')
+def home():
     is_admin = request.args.get('key') == '1eldar123*'
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler ORDER BY id DESC LIMIT 100")
     all_news = cursor.fetchall()
     conn.close()
-    info = {"is_admin": is_admin, "hava": "18°C Quba"}
-    return render_template("index.html", all_news=all_news, info=info)
+    return render_template("index.html", all_news=all_news, info={"is_admin": is_admin, "hava": "18°C Quba"})
+
+@app.route('/xeber/<int:xeber_id>')
+def news_detail(xeber_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler WHERE id = ?", (xeber_id,))
+    news = cursor.fetchone()
+    cursor.execute("SELECT ad, mesaj FROM serhler WHERE xeber_id = ?", (xeber_id,))
+    serhler = cursor.fetchall()
+    conn.close()
+    
+    if news:
+        # Sənin HTML faylının adını bura tam düzgün yazmalısan
+        return render_template("xəbər_səhifəsi.html", news=news, serhler=serhler)
+    return "Xəbər tapılmadı", 404
 
 @app.route('/send_serh', methods=['POST'])
 def send_serh():
     xeber_id = request.form.get('xeber_id')
     ad = request.form.get('ad')
     mesaj = request.form.get('mesaj')
-    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO serhler (xeber_id, ad, mesaj) VALUES (?, ?, ?)", (xeber_id, ad, mesaj))
     conn.commit()
     conn.close()
     return redirect(f'/xeber/{xeber_id}')
-
-@app.route('/xeber/<int:xeber_id>')
-def news_detail(xeber_id):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    # Xəbəri gətir
-    cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler WHERE id = ?", (xeber_id,))
-    news = cursor.fetchone()
-    # Şərhləri gətir
-    cursor.execute("SELECT ad, mesaj FROM serhler WHERE xeber_id = ?", (xeber_id,))
-    serhler = cursor.fetchall()
-    conn.close()
-    
-    if news:
-        return render_template("xəbər_səhifəsi.html", news=news, serhler=serhler)
-    return "Xəbər tapılmadı", 404
 
 if __name__ == '__main__':
     init_db()
