@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Baku News - Admin</title>
+    <style>
+        body { background: #121212; color: white; font-family: sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: left; }
+        .delete-btn { color: red; text-decoration: none; font-weight: bold; }
+        .view-count { color: #ffcc00; }
+    </style>
+</head>
+<body>
+    <h2>Admin Panel - Xəbərlərin İdarə Olunması</h2>
+    <table>
+        <tr>
+            <th>Xəbər Başlığı</th>
+            <th>Baxış Sayı</th>
+            <th>Əməliyyat</th>
+        </tr>
+        {% for n in news %}
+        <tr>
+            <td>{{ n.title }}</td>
+            <td class="view-count">👁 {{ n.views }}</td>
+            <td>
+                <a href="/delete/{{ n.id }}" class="delete-btn" onclick="return confirm('Silinsin?')">Sil</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
