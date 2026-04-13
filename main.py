@@ -104,6 +104,23 @@ def send_serh():
     conn.commit()
     conn.close()
     return redirect(f'/xeber/{xeber_id}')
+    from flask import render_template, redirect, url_for
+
+# Bütün xəbərləri və baxış sayını görə biləcəyin gizli admin paneli
+@app.route('/login:1eldar123*')
+def admin_panel():
+    # Bütün xəbərləri bazadan çəkirik
+    all_news = News.query.order_by(News.id.desc()).all() 
+    return render_template('admin.html', news=all_news)
+
+# Xəbəri silmək üçün funksiya
+@app.route('/delete/<int:id>')
+def delete_news(id):
+    news_to_delete = News.query.get_or_404(id)
+    db.session.delete(news_to_delete)
+    db.session.commit()
+    # Siləndən sonra yenidən gizli panelə qayıtsın
+    return redirect('/login:1eldar123*')
 
 if __name__ == '__main__':
     init_db()
