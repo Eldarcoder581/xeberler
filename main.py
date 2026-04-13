@@ -110,7 +110,7 @@ def home():
     if query:
         cursor.execute("SELECT * FROM xeberler WHERE bashliq LIKE ? ORDER BY id DESC LIMIT 40", (f'%{query}%',))
     else:
-        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40")
+        cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 5")
     
     all_news_raw = cursor.fetchall()
     all_news = []
