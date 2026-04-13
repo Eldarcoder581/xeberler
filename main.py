@@ -14,72 +14,71 @@ DB_PATH = os.path.join(BASE_DIR, 'bakunews.db')
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    # Cədvəli sütunlarla tam uyğunlaşdırdıq
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, link TEXT UNIQUE, meqale TEXT, 
-         img_url TEXT, kateqoriya TEXT DEFAULT 'Ümumi')''')
+         img_url TEXT, kateqoriya TEXT DEFAULT 'Gündəm')''')
     conn.commit()
     conn.close()
 
 def get_category(title):
     t = title.lower()
-    # Sənin istədiyin əsas sahələr
-    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'manat', 'bank', 'maliyyə', 'büdcə', 'neft', 'qaz']): return 'İqtisadiyyat'
-    if any(x in t for x in ['hərbi', 'ordu', 'müdafiə', 'əsgər', 'silah', 'atəşkəs', 'şəhid', 'qazi']): return 'Hərbi'
-    if any(x in t for x in ['təhsil', 'elm', 'məktəb', 'universitet', 'imtahan', 'tələbə', 'ədəbiyyat']): return 'Təhsil'
-    if any(x in t for x in ['siyasət', 'prezident', 'nazir', 'görüş', 'diplomat', 'əliyev', 'paşinyan', 'parlament']): return 'Siyasət'
-    if any(x in t for x in ['innovasiya', 'texno', 'it', 'smartfon', 'süni zəka', 'startap', 'kosmos']): return 'İnnovasiya'
-    
-    # Əgər yuxarıdakılar tapılmasa, "Gündəm" olaraq qeyd et ki, sayt boş qalmasın
+    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'manat', 'bank', 'büdcə', 'neft']): return 'İqtisadiyyat'
+    if any(x in t for x in ['hərbi', 'ordu', 'müdafiə', 'əsgər', 'silah', 'atəşkəs']): return 'Hərbi'
+    if any(x in t for x in ['təhsil', 'elm', 'məktəb', 'universitet', 'imtahan']): return 'Təhsil'
+    if any(x in t for x in ['siyasət', 'prezident', 'nazir', 'diplomat', 'əliyev']): return 'Siyasət'
+    if any(x in t for x in ['innovasiya', 'texno', 'it', 'smartfon', 'süni zəka']): return 'İnnovasiya'
     return 'Gündəm'
 
 def bot_logic():
-    # Sənin istədiyin spesifik bölmələr
     targets = [
-        {"url": "https://report.az/iqtisadiyyat/", "base": "https://report.az"},
-        {"url": "https://report.az/daxili-siyaset/", "base": "https://report.az"},
-        {"url": "https://report.az/herbi/", "base": "https://report.az"},
-        {"url": "https://report.az/elm-tehsil/", "base": "https://report.az"},
-        {"url": "https://qafqazinfo.az/politics", "base": ""},
-        {"url": "https://az.trend.az/business/", "base": "https://az.trend.az"}
+        {"url": "https://report.az/son-xeberler/", "base": "https://report.az"},
+        {"url": "https://qafqazinfo.az/", "base": ""},
+        {"url": "https://az.trend.az/azerbaijan/", "base": "https://az.trend.az"}
     ]
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
     
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             for target in targets:
-                req = urllib.request.Request(target["url"], headers=headers)
-                with urllib.request.urlopen(req, timeout=10) as res:
-                    soup = BeautifulSoup(res.read(), "html.parser")
-                    # [:50] edirik ki, hər bölmədən 50 linki birdən yoxlasın
-                    for item in soup.find_all("a", href=True)[:50]:
-                        link = item["href"]
-                        if link.startswith("/"): link = target["base"] + link
-                        title = item.text.strip()
-                        
-                        if len(title) > 30 and "http" in link:
-                            category = get_category(title)
-                            # Əgər kateqoriya tapılsa (və ya 'Gündəm' olsa) bazaya yaz
-                            cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
-                            if not cursor.fetchone():
-                                cursor.execute("INSERT INTO xeberler (bashliq, link, kateqoriya) VALUES (?,?,?)",
-                                               (title, link, category))
-                                conn.commit()
+                try:
+                    req = urllib.request.Request(target["url"], headers=headers)
+                    with urllib.request.urlopen(req, timeout=15) as res:
+                        soup = BeautifulSoup(res.read(), "html.parser")
+                        for item in soup.find_all("a", href=True)[:40]:
+                            link = item["href"]
+                            if link.startswith("/"): link = target["base"] + link
+                            title = item.text.strip()
+                            
+                            if len(title) > 30 and "http" in link:
+                                cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
+                                if not cursor.fetchone():
+                                    cat = get_category(title)
+                                    # Şəkli çəkməyə çalışırıq, tapmasaq boş qalır
+                                    cursor.execute("INSERT INTO xeberler (bashliq, link, img_url, kateqoriya) VALUES (?,?,?,?)",
+                                                   (title, link, "", cat))
+                                    conn.commit()
+                except: continue 
             conn.close()
         except: pass
-        time.sleep(10) # İlk başda bazanı doldurmaq üçün hər 10 saniyədən bir dövr eləsin
+        time.sleep(30)
 
 @app.route('/')
 def home():
     is_admin = request.args.get('key') == '1eldar123*'
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 100")
+    # Sütunları düzgün sırayla çəkirik
+    cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler ORDER BY id DESC LIMIT 100")
     all_news = cursor.fetchall()
     conn.close()
-    return render_template("index.html", all_news=all_news, info={"is_admin": is_admin})
+    
+    # Hava və admin məlumatı
+    info = {"is_admin": is_admin, "hava": "18°C Quba"}
+    return render_template("index.html", all_news=all_news, info=info)
 
 if __name__ == '__main__':
     init_db()
