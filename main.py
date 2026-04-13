@@ -85,30 +85,38 @@ def bot_logic():
         except: pass
         time.sleep(900) # 15 dəqiqədən bir yenilə
 
+from googletrans import Translator
+
+translator = Translator()
+
 @app.route('/')
 def home():
     query = request.args.get('q', '').strip().lower()
     is_admin = request.args.get('key') == '1eldar123*'
-    lang = session.get('lang', 'az')
+    lang = session.get('lang', 'az') # Seçilən dili burdan götürürük
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # 40 xəbər limiti və filtrasiya
-    secret_cats = ('Analitik Hesabat', 'Strateji Analiz', 'Məlumatların Sintezi')
+    # Xəbərləri gətiririk
+    cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40")
+    all_news_raw = cursor.fetchall()
     
-    if is_admin:
-        if query:
-            cursor.execute("SELECT * FROM xeberler WHERE LOWER(bashliq) LIKE ? ORDER BY id DESC LIMIT 40", (f"%{query}%",))
-        else:
-            cursor.execute("SELECT * FROM xeberler ORDER BY id DESC LIMIT 40")
+    all_news = []
+    if lang != 'az':
+        # Əgər dil azərbaycan dili deyilsə, başlıqları tərcümə edirik
+        for item in all_news_raw:
+            item_list = list(item)
+            try:
+                # Başlığı tərcümə et (Məsələn: 'en' və ya 'ru')
+                translated = translator.translate(item[1], dest=lang).text
+                item_list[1] = translated
+            except:
+                pass
+            all_news.append(item_list)
     else:
-        if query:
-            cursor.execute("SELECT * FROM xeberler WHERE LOWER(bashliq) LIKE ? AND kateqoriya NOT IN (?,?,?) ORDER BY id DESC LIMIT 40", (f"%{query}%", *secret_cats))
-        else:
-            cursor.execute("SELECT * FROM xeberler WHERE kateqoriya NOT IN (?,?,?) ORDER BY id DESC LIMIT 40", secret_cats)
-    
-    all_news = cursor.fetchall()
+        all_news = all_news_raw
+
     info = {
         "usd": "1.7000", 
         "hava": get_live_weather("Quba"), 
