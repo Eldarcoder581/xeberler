@@ -4,7 +4,7 @@ import threading
 import time
 import os
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request
 
 app = Flask(__name__, template_folder='.')
 app.secret_key = 'baku_news_2026_key'
@@ -14,7 +14,6 @@ DB_PATH = os.path.join(BASE_DIR, 'bakunews.db')
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Cədvəli sütunlarla tam uyğunlaşdırdıq
     cursor.execute('''CREATE TABLE IF NOT EXISTS xeberler 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
          bashliq TEXT, link TEXT UNIQUE, meqale TEXT, 
@@ -24,11 +23,10 @@ def init_db():
 
 def get_category(title):
     t = title.lower()
-    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'manat', 'bank', 'büdcə', 'neft']): return 'İqtisadiyyat'
-    if any(x in t for x in ['hərbi', 'ordu', 'müdafiə', 'əsgər', 'silah', 'atəşkəs']): return 'Hərbi'
-    if any(x in t for x in ['təhsil', 'elm', 'məktəb', 'universitet', 'imtahan']): return 'Təhsil'
-    if any(x in t for x in ['siyasət', 'prezident', 'nazir', 'diplomat', 'əliyev']): return 'Siyasət'
-    if any(x in t for x in ['innovasiya', 'texno', 'it', 'smartfon', 'süni zəka']): return 'İnnovasiya'
+    if any(x in t for x in ['iqtisadiyyat', 'dollar', 'manat', 'bank']): return 'İqtisadiyyat'
+    if any(x in t for x in ['hərbi', 'ordu', 'müdafiə', 'əsgər']): return 'Hərbi'
+    if any(x in t for x in ['təhsil', 'elm', 'məktəb', 'imtahan']): return 'Təhsil'
+    if any(x in t for x in ['siyasət', 'prezident', 'nazir', 'əliyev']): return 'Siyasət'
     return 'Gündəm'
 
 def bot_logic():
@@ -37,7 +35,7 @@ def bot_logic():
         {"url": "https://qafqazinfo.az/", "base": ""},
         {"url": "https://az.trend.az/azerbaijan/", "base": "https://az.trend.az"}
     ]
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
+    headers = {'User-Agent': 'Mozilla/5.0'}
     
     while True:
         try:
@@ -46,22 +44,21 @@ def bot_logic():
             for target in targets:
                 try:
                     req = urllib.request.Request(target["url"], headers=headers)
-                    with urllib.request.urlopen(req, timeout=15) as res:
+                    with urllib.request.urlopen(req, timeout=10) as res:
                         soup = BeautifulSoup(res.read(), "html.parser")
-                        for item in soup.find_all("a", href=True)[:40]:
+                        for item in soup.find_all("a", href=True)[:30]:
                             link = item["href"]
                             if link.startswith("/"): link = target["base"] + link
                             title = item.text.strip()
                             
-                            if len(title) > 30 and "http" in link:
+                            if len(title) > 25 and "http" in link:
                                 cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
                                 if not cursor.fetchone():
                                     cat = get_category(title)
-                                    # Şəkli çəkməyə çalışırıq, tapmasaq boş qalır
-                                    cursor.execute("INSERT INTO xeberler (bashliq, link, img_url, kateqoriya) VALUES (?,?,?,?)",
-                                                   (title, link, "", cat))
+                                    cursor.execute("INSERT INTO xeberler (bashliq, link, kateqoriya) VALUES (?,?,?)",
+                                                   (title, link, cat))
                                     conn.commit()
-                except: continue 
+                except: continue
             conn.close()
         except: pass
         time.sleep(30)
@@ -71,12 +68,9 @@ def home():
     is_admin = request.args.get('key') == '1eldar123*'
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Sütunları düzgün sırayla çəkirik
     cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler ORDER BY id DESC LIMIT 100")
     all_news = cursor.fetchall()
     conn.close()
-    
-    # Hava və admin məlumatı
     info = {"is_admin": is_admin, "hava": "18°C Quba"}
     return render_template("index.html", all_news=all_news, info=info)
 
