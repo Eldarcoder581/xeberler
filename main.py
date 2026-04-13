@@ -62,6 +62,17 @@ def bot_logic():
             conn.close()
         except: pass
         time.sleep(30)
+       
+        @app.route('/')
+    def home():
+    is_admin = request.args.get('key') == '1eldar123*'
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, bashliq, link, meqale, img_url, kateqoriya FROM xeberler ORDER BY id DESC LIMIT 100")
+    all_news = cursor.fetchall()
+    conn.close()
+    info = {"is_admin": is_admin, "hava": "18°C Quba"}
+    return render_template("index.html", all_news=all_news, info=info)
 
 @app.route('/send_serh', methods=['POST'])
 def send_serh():
