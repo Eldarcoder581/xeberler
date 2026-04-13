@@ -34,17 +34,16 @@ def get_category(title):
     return 'Gündəm'
 
 def bot_logic():
-    # Sənin istədiyin sahələrə uyğun mənbə linkləri
+    # Sənin istədiyin spesifik bölmələr
     targets = [
         {"url": "https://report.az/iqtisadiyyat/", "base": "https://report.az"},
         {"url": "https://report.az/daxili-siyaset/", "base": "https://report.az"},
         {"url": "https://report.az/herbi/", "base": "https://report.az"},
         {"url": "https://report.az/elm-tehsil/", "base": "https://report.az"},
-        {"url": "https://report.az/texnologiya/", "base": "https://report.az"},
         {"url": "https://qafqazinfo.az/politics", "base": ""},
         {"url": "https://az.trend.az/business/", "base": "https://az.trend.az"}
     ]
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
+    headers = {'User-Agent': 'Mozilla/5.0'}
     
     while True:
         try:
@@ -52,37 +51,25 @@ def bot_logic():
             cursor = conn.cursor()
             for target in targets:
                 req = urllib.request.Request(target["url"], headers=headers)
-                with urllib.request.urlopen(req, timeout=15) as res:
+                with urllib.request.urlopen(req, timeout=10) as res:
                     soup = BeautifulSoup(res.read(), "html.parser")
-                    links = soup.find_all("a", href=True)
-                    
-                    for item in links[:40]: # Hər bölmədən daha çox linkə baxırıq
+                    # [:50] edirik ki, hər bölmədən 50 linki birdən yoxlasın
+                    for item in soup.find_all("a", href=True)[:50]:
                         link = item["href"]
                         if link.startswith("/"): link = target["base"] + link
                         title = item.text.strip()
                         
                         if len(title) > 30 and "http" in link:
                             category = get_category(title)
-                            
-                            # Əgər xəbər bizim kateqoriyalara uyğun deyilsə, bazaya yazma
-                            if category:
-                                cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
-                                if not cursor.fetchone():
-                                    img_url = ""
-                                    try:
-                                        c_req = urllib.request.Request(link, headers=headers)
-                                        with urllib.request.urlopen(c_req, timeout=5) as c_res:
-                                            c_soup = BeautifulSoup(c_res.read(), "html.parser")
-                                            img_tag = c_soup.find('meta', property="og:image")
-                                            if img_tag: img_url = img_tag['content']
-                                    except: pass
-                                    
-                                    cursor.execute("INSERT INTO xeberler (bashliq, link, img_url, kateqoriya) VALUES (?,?,?,?)",
-                                                   (title, link, img_url, category))
-                                    conn.commit()
+                            # Əgər kateqoriya tapılsa (və ya 'Gündəm' olsa) bazaya yaz
+                            cursor.execute("SELECT id FROM xeberler WHERE link = ?", (link,))
+                            if not cursor.fetchone():
+                                cursor.execute("INSERT INTO xeberler (bashliq, link, kateqoriya) VALUES (?,?,?)",
+                                               (title, link, category))
+                                conn.commit()
             conn.close()
         except: pass
-        time.sleep(120) # 2 dəqiqədən bir yenilə
+        time.sleep(10) # İlk başda bazanı doldurmaq üçün hər 10 saniyədən bir dövr eləsin
 
 @app.route('/')
 def home():
