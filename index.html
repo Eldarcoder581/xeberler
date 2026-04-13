@@ -59,18 +59,36 @@
     <a href="/" class="logo">BAKU NEWS</a>
 
     <div class="lang-switcher">
-        <a href="/set_lang/az" class="active">AZ</a>
+        <a href="/set_lang/az" class="{% if info.lang == 'az' %}active{% endif %}">AZ</a>
         <span>|</span>
-        <a href="/set_lang/ru">RU</a>
+        <a href="/set_lang/ru" class="{% if info.lang == 'ru' %}active{% endif %}">RU</a>
         <span>|</span>
-        <a href="/set_lang/en">EN</a>
+        <a href="/set_lang/en" class="{% if info.lang == 'en' %}active{% endif %}">EN</a>
     </div>
 </header>
 
-<div class="container">
-    {% if info.query %}
+<div class="container" style="max-width: 1300px;"> {% if info.query %}
         <h3 style="color: #ffeb3b; font-size: 16px;">"{{ info.query }}" üzrə nəticələr:</h3>
     {% endif %}
+
+    <div class="news-grid">
+        {% if all_news %}
+            {% for item in all_news %}
+            <a href="/xeber/{{ item[0] }}" class="news-card">
+                <div class="img-box">
+                    <img src="{{ item[4] or 'https://via.placeholder.com/300x200?text=BAKU+NEWS' }}" alt="news">
+                    <span class="cat-badge">{{ item[5] }}</span>
+                </div>
+                <div class="card-info">
+                    <h3>{{ item[1] }}</h3>
+                </div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <p style="text-align:center; color:#888; grid-column: span 4;">Xəbər tapılmadı.</p>
+        {% endif %}
+    </div>
+</div>
 
     <div class="news-list">
         {% if all_news %}
